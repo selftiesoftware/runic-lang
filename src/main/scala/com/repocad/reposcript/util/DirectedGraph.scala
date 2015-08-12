@@ -1,6 +1,6 @@
-package com.repocad.com.repocad.util
+package com.repocad.reposcript.util
 
-import com.repocad.com.repocad.util.DirectedGraph.Node
+import DirectedGraph.Node
 
 import scala.collection.immutable
 

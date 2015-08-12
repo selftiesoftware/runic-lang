@@ -1,7 +1,7 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.com.repocad.util.DirectedGraph
 import com.repocad.reposcript.lexing.Lexer
+import com.repocad.reposcript.util.DirectedGraph
 import com.repocad.reposcript.{Environment, HttpClient, parsing}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}

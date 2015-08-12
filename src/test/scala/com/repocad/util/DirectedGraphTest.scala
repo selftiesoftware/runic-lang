@@ -1,8 +1,9 @@
 package com.repocad.util
 
-import com.repocad.com.repocad.util.DirectedGraph
-import com.repocad.com.repocad.util.DirectedGraph.Node
+import com.repocad.reposcript.util.DirectedGraph
+import DirectedGraph.Node
 import com.repocad.reposcript.parsing._
+import com.repocad.reposcript.util.DirectedGraph
 import org.scalatest.{FlatSpec, Matchers}
 
 class DirectedGraphTest extends FlatSpec with Matchers {

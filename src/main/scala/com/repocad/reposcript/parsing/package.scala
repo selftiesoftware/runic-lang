@@ -1,7 +1,7 @@
 package com.repocad.reposcript
 
-import com.repocad.com.repocad.util.DirectedGraph
 import com.repocad.reposcript.lexing.{Token, LiveStream}
+import com.repocad.reposcript.util.DirectedGraph
 
 /**
  * The parsing package contains code for converting [[com.repocad.reposcript.lexing.Token]]s into an Abstract Syntax Tree
