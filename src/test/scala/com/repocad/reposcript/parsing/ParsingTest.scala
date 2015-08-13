@@ -4,13 +4,18 @@ import com.repocad.reposcript.lexing.Lexer
 import com.repocad.reposcript.util.DirectedGraph
 import com.repocad.reposcript.{Environment, HttpClient, parsing}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
-trait ParsingTest extends FlatSpec with Matchers with MockFactory {
+trait ParsingTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
 
   val emptyTypeEnv : TypeEnv = new DirectedGraph(Map(), AnyType)
+  val emptyValueEnv : ValueEnv = Map()
   val mockClient = mock[HttpClient]
-  val parser = new Parser(mockClient)
+  var parser : Parser = null
+
+  before {
+    parser = new Parser(mockClient, emptyValueEnv, emptyTypeEnv)
+  }
 
   def testEqualsAll(expected : Seq[Expr], expression : String) = {
     parseStringAll(expression).right.map(_._1) should equal(Right(BlockExpr(expected)))

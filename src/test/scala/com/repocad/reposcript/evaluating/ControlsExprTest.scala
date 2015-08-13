@@ -13,7 +13,7 @@ class ControlsExprTest extends FlatSpec with MockFactory with Matchers {
   val emptyEnv : Env = Map[String, Any]()
   val mockPrinter : Printer[Any] = mock[Printer[Any]]
   val mockEnv : Env = Map("line" -> ((funEnv : Env, a : Int, b : Double, c : Double, d : Double) => mockPrinter.line(a, b, c, d)))
-  val mockParser = new Parser(mock[HttpClient])
+  val mockParser = new Parser(mock[HttpClient], Map(), emptyTypeEnv)
   val evaluator = new Evaluator(mockParser)
 
    "A control expression evaluator" should "evaluate an if statement where the condition is true" in {

@@ -1,28 +1,26 @@
 package com.repocad.reposcript
 
-import com.repocad.reposcript.lexing.{Token, LiveStream, Lexer}
+import com.repocad.reposcript.lexing.{Lexer, LiveStream, Token}
 import com.repocad.reposcript.parsing._
-import com.repocad.reposcript.util.DirectedGraph
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
 class RemoteCacheTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
 
-  class NoArgParser extends Parser(mockClient)
+  class NoArgParser extends Parser(mockClient, Map(), parsing.emptyTypeEnv)
 
   val mockClient = mock[HttpClient]
-  val mockParser = mock[NoArgParser]
+  val mockParser : Parser = mock[NoArgParser]
   var cache : RemoteCache = null
 
   before {
-    cache = new RemoteCache(mockClient, mockParser)
+    cache = new RemoteCache(mockClient)
   }
 
   "A remote cache" should "fetch scripts" in {
     (mockClient.getSynchronous _).expects("get/test").returning(Response(0, 4, "")).once()
-    (mockParser.parse(_ : LiveStream[Token])).expects(Lexer.lex("")).once()
 
-    cache.get("test")
+    cache.get("test", _ => Left(""))
   }
   it should "fail when finding scripts that do not exist" in {
     cache.contains("test") should equal(false)
@@ -31,10 +29,10 @@ class RemoteCacheTest extends FlatSpec with Matchers with MockFactory with Befor
     val result : parsing.Value = Right[String, (Expr, ValueEnv, TypeEnv)]((IntExpr(10), Map(), null))
 
     (mockClient.getSynchronous _).expects("get/test").returning(Response(0, 4, "10")).once()
-    (mockParser.parse(_ : LiveStream[Token])).expects(Lexer.lex("10")).returning(result).once()
+    (mockParser.parse(_ : LiveStream[Token], _ : Boolean)).expects(Lexer.lex("10"), true).returning(result).once()
 
-    cache.get("test") should equal(result)
-    cache.get("test") should equal(result)
+    cache.get("test", text => mockParser.parse(Lexer.lex(text), true)).right.get._1 should equal(IntExpr(10))
+    cache.get("test", text => mockParser.parse(Lexer.lex(text), true)).right.get._1 should equal(IntExpr(10))
   }
 
 }

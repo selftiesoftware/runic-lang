@@ -1,7 +1,7 @@
 package com.repocad.reposcript.evaluating
 
 import com.repocad.reposcript.parsing._
-import com.repocad.reposcript.{HttpClient, Environment, Printer}
+import com.repocad.reposcript.{parsing, HttpClient, Environment, Printer}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -9,7 +9,7 @@ class PrimitivesTest extends FlatSpec with MockFactory with Matchers {
 
   val mockPrinter : Printer[Any] = mock[Printer[Any]]
   val defaultEnv = Environment.getEvaluatorEnv(mockPrinter)
-  val mockParser = new Parser(mock[HttpClient])
+  val mockParser = new Parser(mock[HttpClient], Map(), parsing.emptyTypeEnv)
   val evaluator = new Evaluator(mockParser)
 
   def evalPrimitive[T](operand : String, arg1 : Int, arg2 : Int, expected : T) = {

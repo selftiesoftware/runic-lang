@@ -1,22 +1,24 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.{RemoteCache, HttpClient, Environment}
 import com.repocad.reposcript.lexing._
-
-import scala.concurrent.ExecutionContext
+import com.repocad.reposcript.{HttpClient, RemoteCache}
 
 /**
  * Parses code into drawing expressions (AST)
  */
-class Parser(val httpClient : HttpClient) {
+class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTypeEnv : TypeEnv) {
 
-  val remoteCache = new RemoteCache(httpClient, this)
+  val remoteCache = new RemoteCache(httpClient)
 
   private val DEFAULT_LOOP_COUNTER = "_loopCounter"
 
   def parse(tokens : LiveStream[Token]) : Value = {
+    parse(tokens, spillEnvironment = false)
+  }
+
+  def parse(tokens : LiveStream[Token], spillEnvironment : Boolean) : Value = {
     try {
-      parseUntil(tokens, _ => false, Environment.getParserEnv, defaultTypeEnv, (expr, values, types, _) => Right((expr, values, types)), e => Left(e))
+      parseUntil(parse, tokens, _ => false, defaultValueEnv, defaultTypeEnv, (expr, values, types, _) => Right((expr, values, types)), e => Left(e), spillEnvironment)
     } catch {
       case e : InternalError => Left("Script too large (sorry - we're working on it!)")
       case e : Exception => Left(e.getLocalizedMessage)
@@ -28,9 +30,11 @@ class Parser(val httpClient : HttpClient) {
 
       // Import
       case SymbolToken("import") :~: SymbolToken(script) :~: tail =>
-        remoteCache.get(script) match {
+        val res = remoteCache.get(script, code => parse(Lexer.lex(code), spillEnvironment = true))
+        res match {
           case Left(error) => failure(error)
-          case Right((expr, importValueEnv, importTypeEnv)) => success(expr, importValueEnv, importTypeEnv, tail)
+          case Right((expr, importValueEnv, importTypeEnv)) =>
+            success(ImportExpr(script), importValueEnv, importTypeEnv, tail)
         }
 
       case SymbolToken("if") :~: tail =>
@@ -228,15 +232,19 @@ class Parser(val httpClient : HttpClient) {
     }
   }
 
-  private def parseUntil(tokens: LiveStream[Token], token : Token, valueEnv : ValueEnv, typeEnv : TypeEnv, success : SuccessCont, failure: FailureCont): Value = {
+  private def parseUntil(tokens: LiveStream[Token], token : Token, valueEnv : ValueEnv, typeEnv : TypeEnv,
+                         success : SuccessCont, failure: FailureCont): Value = {
     parseUntil(parse, tokens, stream => stream.head.toString.equals(token.toString), valueEnv, typeEnv, success, failure)
   }
 
-  private def parseUntil(tokens: LiveStream[Token], condition : LiveStream[Token] => Boolean, valueEnv : ValueEnv, typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont): Value = {
+  private def parseUntil(tokens: LiveStream[Token], condition : LiveStream[Token] => Boolean, valueEnv : ValueEnv,
+                         typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont): Value = {
     parseUntil(parse, tokens, condition, valueEnv, typeEnv, success, failure)
   }
 
-  private def parseUntil(parseFunction : (LiveStream[Token], ValueEnv, TypeEnv, SuccessCont, FailureCont) => Value, tokens: LiveStream[Token], condition : LiveStream[Token] => Boolean, valueEnv : ValueEnv, typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont): Value = {
+  private def parseUntil(parseFunction : (LiveStream[Token], ValueEnv, TypeEnv, SuccessCont, FailureCont) => Value,
+                         tokens: LiveStream[Token], condition : LiveStream[Token] => Boolean, valueEnv : ValueEnv,
+                         typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont, spillEnvironment : Boolean = false): Value = {
     var typeEnvVar : TypeEnv = typeEnv
     var valueEnvVar : ValueEnv = valueEnv
     var seq = Seq[Expr]()
@@ -251,7 +259,7 @@ class Parser(val httpClient : HttpClient) {
       Left(s)
     }
     while (seqFail.isEmpty && !seqTail.isPlugged && !condition(seqTail)) {
-      parseFunction(seqTail, valueEnvVar, typeEnv, seqSuccess, seqFailure) match {
+      parseFunction(seqTail, valueEnvVar, typeEnvVar, seqSuccess, seqFailure) match {
          case Left(s) => seqFail = Some(s)
          case Right((e, newValueEnv, newTypeEnv)) =>
            if (e != UnitExpr) seq = seq :+ e
@@ -262,7 +270,13 @@ class Parser(val httpClient : HttpClient) {
     if (!seqTail.isPlugged && condition(seqTail) ) {
       seqTail = seqTail.tail
     }
-    seqFail.map(seqFailure).getOrElse(success(BlockExpr(seq), valueEnv, typeEnv, seqTail))
+    seqFail.map(seqFailure).getOrElse(
+      if (spillEnvironment) {
+        success(BlockExpr(seq), valueEnvVar, typeEnvVar, seqTail)
+      } else {
+        success(BlockExpr(seq), valueEnv, typeEnv, seqTail)
+      }
+    )
   }
 
   private def verifyType(typeName : String, typeEnv : TypeEnv) : Either[String, AnyType] = {

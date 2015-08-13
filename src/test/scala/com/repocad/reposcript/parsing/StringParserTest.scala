@@ -17,5 +17,8 @@ class StringParserTest extends ParsingTest {
   it should "fail gracefully on unclosed brackets" in {
     testEqualsAll(Seq(BlockExpr(Seq())), "(")
   }
+  it should "reset environments when ending blocks" in {
+    parseStringAll("def a = 10") should equal(Right(BlockExpr(Seq(DefExpr("a", IntExpr(10)))), emptyValueEnv, emptyTypeEnv))
+  }
 
 }

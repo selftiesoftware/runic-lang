@@ -33,6 +33,8 @@ package object parsing {
     .union(FunctionType, Function3Type)
     .union(FunctionType, Function4Type)
 
+  val emptyTypeEnv : TypeEnv = new DirectedGraph(Map(), AnyType)
+
   lazy val stringTypeMap : Map[String, AnyType] = Map(
     "Boolean" -> BooleanType,
     "Float" -> FloatType,

@@ -1,5 +1,6 @@
 package com.repocad.reposcript.evaluating
 
+import com.repocad.reposcript.lexing.Lexer
 import com.repocad.reposcript.parsing._
 import com.repocad.reposcript.{Printer, _}
 
@@ -25,7 +26,7 @@ class Evaluator(parser : Parser) {
   def eval(expr: Expr, env : Env) : Value = {
     expr match {
 
-      case ImportExpr(name) => remoteCache.get(name).right.flatMap(expr => eval(expr._1, env))
+      case ImportExpr(name) => remoteCache.get(name, code => parser.parse(Lexer.lex(code))).right.flatMap(expr => eval(expr._1, env))
 
       case v : ValueExpr[_] => Right(env -> v.value)
 

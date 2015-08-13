@@ -1,6 +1,6 @@
 package com.repocad.reposcript.evaluating
 
-import com.repocad.reposcript.HttpClient
+import com.repocad.reposcript.{parsing, HttpClient}
 import com.repocad.reposcript.parsing._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
@@ -11,7 +11,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class ExprTest extends FlatSpec with MockFactory with Matchers {
 
   val emptyEnv : Env = Map[String, Any]()
-  val mockParser = new Parser(mock[HttpClient])
+  val mockParser = new Parser(mock[HttpClient], Map(), parsing.emptyTypeEnv)
   val evaluator = new Evaluator(mockParser)
 
   "An expression evaluator" should "evaluate an empty block expression" in {
