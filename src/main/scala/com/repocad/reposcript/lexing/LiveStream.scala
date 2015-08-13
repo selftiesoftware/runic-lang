@@ -22,6 +22,13 @@ class LiveStreamSource[A] {
     */
   def isTerminated = _isTerminated
 
+  override def equals(o : Any) : Boolean = {
+    o match {
+      case that : LiveStreamSource[_] => this.queue.toString().equals(that.queue.toString())
+      case _ => false
+    }
+  }
+
 
   /**
   Terminates this source.
@@ -107,7 +114,7 @@ A live stream is a stream whose tail may grow over time.
 
  Every stream has a source which determines its tail.
   */
-class LiveStream[A](val source : LiveStreamSource[A]) {
+case class LiveStream[A](source : LiveStreamSource[A]) {
 
   private var headCache : Option[A] = None
   private var tailCache : Option[LiveStream[A]] = None
@@ -178,7 +185,7 @@ object LivePlug {
 /**
 Pattern matches the end of a (terminated) live stream.
   */
-object LiveNil {
+case object LiveNil {
   def unapplySeq[A](stream : LiveStream[A]) : Option[List[A]] = {
     if (stream.isEmpty)
       Some(Nil)

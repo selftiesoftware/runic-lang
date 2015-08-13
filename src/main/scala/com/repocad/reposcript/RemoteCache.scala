@@ -26,6 +26,7 @@ class RemoteCache(httpClient: HttpClient, parser : Parser) {
     }
 
     scriptCache = scriptCache + (scriptName -> result)
+
     result
   }
 
