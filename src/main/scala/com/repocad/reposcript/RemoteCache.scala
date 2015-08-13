@@ -19,7 +19,7 @@ class RemoteCache(httpClient: HttpClient, parser : Parser) {
   }
 
   private def download(scriptName : String) : parsing.Value = {
-    val result = httpClient.getSynchronous("http://repocad.com/get/" + scriptName) match {
+    val result = httpClient.getSynchronous("get/" + scriptName) match {
       case Response(_, 4, text) =>
         parser.parse(Lexer.lex(text))
       case xs => Left(s"Script $scriptName failed to load with error: $xs")
