@@ -8,7 +8,9 @@ import scala.concurrent.ExecutionContext
 /**
  * Parses code into drawing expressions (AST)
  */
-class Parser(val remoteCache : RemoteCache) {
+class Parser(val httpClient : HttpClient)(implicit ec : ExecutionContext) {
+
+  val removeCache = new RemoteCache(httpClient, this)(ec)
 
   private val DEFAULT_LOOP_COUNTER = "_loopCounter"
 
