@@ -3,14 +3,14 @@ package com.repocad.reposcript.parsing
 import com.repocad.reposcript.{RemoteCache, HttpClient, Environment}
 import com.repocad.reposcript.lexing._
 
+import scala.concurrent.ExecutionContext
+
 /**
  * Parses code into drawing expressions (AST)
  */
-class Parser(httpClient : HttpClient) {
+class Parser(val remoteCache : RemoteCache) {
 
   private val DEFAULT_LOOP_COUNTER = "_loopCounter"
-
-  lazy val remoteCache = new RemoteCache(httpClient, this)
 
   def parse(tokens : LiveStream[Token]) : Value = {
     try {

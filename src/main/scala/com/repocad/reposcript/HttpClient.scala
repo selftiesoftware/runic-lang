@@ -1,5 +1,7 @@
 package com.repocad.reposcript
 
+import scala.concurrent.Future
+
 /**
  * A response to an Ajax request.
  * @param status The status code.
@@ -18,7 +20,7 @@ trait HttpClient {
    * @param url The url to send the request to.
    * @return A [[Response]].
    */
-  def get(url : String) : Response = {
+  def get(url : String) : Future[Response] = {
     ajax("GET", url, "", Map())
   }
 
@@ -28,7 +30,7 @@ trait HttpClient {
    * @param data The data to send with the request. Defaults to an empty string.
    * @return A [[Response]].
    */
-  def post(url : String, data : String = "") : Response = {
+  def post(url : String, data : String = "") : Future[Response] = {
     ajax("POST", url, data, Map("Content-length" -> data.length.toString))
   }
 
@@ -40,6 +42,6 @@ trait HttpClient {
    * @param headers Headers to include in the request. Can be empty.
    * @return A [[Response]].
    */
-  def ajax(method : String, url : String, data : String, headers : Map[String, String]) : Response
+  def ajax(method : String, url : String, data : String, headers : Map[String, String]) : Future[Response]
 
 }
