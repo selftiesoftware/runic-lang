@@ -35,6 +35,6 @@ class RemoteCacheTest extends FlatSpec with Matchers with MockFactory with Befor
 
     cache.get("test") should equal(result)
     cache.get("test") should equal(result)
-  }1
+  }
 
 }
