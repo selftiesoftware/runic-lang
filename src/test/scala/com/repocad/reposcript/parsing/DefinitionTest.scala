@@ -9,6 +9,9 @@ class DefinitionTest extends ParsingTest {
   it should "parse a definition with type information" in {
     testEquals(DefExpr("a", IntExpr(10)), "def a as Int = 10")
   }
+  it should "set the type to a supertype if requested" in {
+    testEquals(DefExpr("a", IntExpr(10)), "def a as Number = 10")
+  }
   it should "store a value in the value environment" in {
     parseString("def a = 10", Map(), emptyTypeEnv) should equal (Right(DefExpr("a", IntExpr(10)), Map("a" -> IntExpr(10)), emptyTypeEnv))
   }

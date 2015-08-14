@@ -166,11 +166,12 @@ class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTyp
 
       /* Assignments */
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: SymbolToken("=") :~: tail =>
-        verifyType(typeName, typeEnv).right.flatMap(t => parse(tail, valueEnv, typeEnv, (e, _, _, stream) => if (e.t == t) {
-          success(DefExpr(name, e), valueEnv + (name -> e), typeEnv, stream)
-        } else {
-          failure(s"'$name' has the expected type $t, but was assigned to type ${e.t}")
-        }, failure))
+        verifyType(typeName, typeEnv).right.flatMap(parentType =>
+          parse(tail, valueEnv, typeEnv, (e, _, _, stream) => typeEnv.getChildOf(parentType, e.t) match {
+            case Some(t) => success(DefExpr(name, e), valueEnv + (name -> e), typeEnv, stream)
+            case None => failure(s"'$name' has the expected type $parentType, but was assigned to type ${e.t}")
+          }, failure)
+        )
 
       case SymbolToken(name) :~: SymbolToken("=") :~: tail =>
         parse(tail, valueEnv, typeEnv, (e, _, _, stream) => success(DefExpr(name, e), valueEnv + (name -> e), typeEnv, stream), failure)
