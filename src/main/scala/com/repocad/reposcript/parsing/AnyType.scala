@@ -12,11 +12,7 @@ case class CollectionType(content : AnyType) extends AnyType
 case object BooleanType extends AnyType
 case object StringType extends AnyType
 case object UnitType extends AnyType
-
-trait NumberType extends AnyType
-case object NumberType extends NumberType
-case object FloatType extends NumberType
-case object IntType extends NumberType
+case object NumberType extends AnyType
 
 trait FunctionType extends AnyType
 case object FunctionType extends FunctionType

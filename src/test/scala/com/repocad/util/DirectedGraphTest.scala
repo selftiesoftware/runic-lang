@@ -17,7 +17,7 @@ class DirectedGraphTest extends FlatSpec with Matchers {
   }
   it should "fail when unioning non-existing parent" in {
     intercept[NoSuchElementException] {
-      DirectedGraph[AnyType](AnyType).union(NumberType, IntType)
+      DirectedGraph[AnyType](AnyType).union(NumberType, StringType)
     }
   }
 
@@ -31,8 +31,8 @@ class DirectedGraphTest extends FlatSpec with Matchers {
   }
 
   it should "find a common parent in a linear hiearachy" in {
-    val graph = DirectedGraph[AnyType](AnyType).union(AnyType, NumberType).union(NumberType, IntType)
-    graph.commonParent(NumberType, IntType) should equal(NumberType)
+    val graph = DirectedGraph[AnyType](AnyType).union(AnyType, NumberType).union(NumberType, NumberType)
+    graph.commonParent(NumberType, NumberType) should equal(NumberType)
   }
   it should "find a common parent in a split hierarchy" in {
     val graph = DirectedGraph[AnyType](AnyType).union(AnyType, NumberType).union(AnyType, BooleanType)

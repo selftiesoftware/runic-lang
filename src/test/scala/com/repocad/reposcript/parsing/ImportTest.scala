@@ -13,7 +13,7 @@ class ImportTest extends ParsingTest {
     (mockClient.getSynchronous _).expects("get/a").returning(Response(0, 4, "def b = 10"))
 
     parseString("import a b", Map(), emptyTypeEnv) should equal(
-      Right(ImportExpr("a"), Map("b" -> IntExpr(10)), emptyTypeEnv)
+      Right(ImportExpr("a"), Map("b" -> NumberExpr(10)), emptyTypeEnv)
     )
   }
 

@@ -11,19 +11,17 @@ object Environment {
   type EnvMap = Map[String, (Expr, Any)]
 
   private val BooleanTypeExpr = new Expr { val t = BooleanType }
-  private val FloatTypeExpr = new Expr { val t = FloatType }
-  private val IntTypeExpr = new Expr { val t = IntType }
   private val NumberTypeExpr = new Expr { val t = NumberType }
 
   private lazy val primiviteEnv : EnvMap = Map (
   // Calculation primitives
-    "+" -> (FunctionExpr("+", Seq(RefExpr("first", IntType), RefExpr("second", IntType)), IntTypeExpr),
+    "+" -> (FunctionExpr("+", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), NumberTypeExpr),
       (env: evaluating.Env, a: Any, b: Any) => RepoMath.plus(a, b)),
-    "-" -> (FunctionExpr("-", Seq(RefExpr("first", IntType), RefExpr("second", IntType)), IntTypeExpr),
+    "-" -> (FunctionExpr("-", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), NumberTypeExpr),
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.minus(a, b)),
-    "*" -> (FunctionExpr("*", Seq(RefExpr("first", IntType), RefExpr("second", IntType)), IntTypeExpr),
+    "*" -> (FunctionExpr("*", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), NumberTypeExpr),
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.times(a, b)),
-    "/" -> (FunctionExpr("/", Seq(RefExpr("first", IntType), RefExpr("second", IntType)), FloatTypeExpr),
+    "/" -> (FunctionExpr("/", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), NumberTypeExpr),
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.divide(a, b)),
     "<" -> (FunctionExpr("<", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), BooleanTypeExpr),
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.lessThan(a, b)),
@@ -44,18 +42,12 @@ object Environment {
       (_ : evaluating.Env, degrees : Double) => math.toRadians(degrees)),
     "tan" -> (FunctionExpr("tan", Seq(RefExpr("degrees", NumberType)), NumberTypeExpr),
       (_ : evaluating.Env, degrees : Double) => math.tan(degrees)),
-    "toInt" -> (FunctionExpr("toInt", Seq(RefExpr("number", FloatType)), IntTypeExpr),
+    "toInt" -> (FunctionExpr("toInt", Seq(RefExpr("number", NumberType)), NumberTypeExpr),
       (_ : evaluating.Env, double : Double) => double.toInt)
   )
 
-  private lazy val parserValueEnv : parsing.ValueEnv = primiviteEnv.map(t => t._1 -> t._2._1) ++ Printer.toParserEnv
+  lazy val evaluatorEnv : evaluating.Env = primiviteEnv.map(t => t._1 -> t._2._2)
 
-  private lazy val evaluatorEnv : evaluating.Env = primiviteEnv.map(t => t._1 -> t._2._2)
-
-  def getParserEnv : parsing.ValueEnv = parserValueEnv
-
-  def getEvaluatorEnv(printer : Printer[_]) : evaluating.Env = {
-    evaluatorEnv ++ printer.toEvaluatorEnv
-  }
+  lazy val parserValueEnv : parsing.ValueEnv = primiviteEnv.map(t => t._1 -> t._2._1) ++ Printer.toParserEnv
 
 }

@@ -21,12 +21,12 @@ trait ParsingTest extends FlatSpec with Matchers with MockFactory with BeforeAnd
     parseStringAll(expression).right.map(_._1) should equal(Right(BlockExpr(expected)))
   }
 
-  def testEquals(expected : Expr, expression : String, valueEnv : ValueEnv = Environment.getParserEnv, typeEnv: TypeEnv = parsing.defaultTypeEnv) = {
+  def testEquals(expected : Expr, expression : String, valueEnv : ValueEnv = Environment.parserValueEnv, typeEnv: TypeEnv = parsing.defaultTypeEnv) = {
     val either = parseString(expression, valueEnv, typeEnv).right.map(_._1)
     either should equal(Right(expected))
   }
 
-  def parseString(string : String, valueEnv : ValueEnv = Environment.getParserEnv, typeEnv : TypeEnv = parsing.defaultTypeEnv) : Value = {
+  def parseString(string : String, valueEnv : ValueEnv = Environment.parserValueEnv, typeEnv : TypeEnv = parsing.defaultTypeEnv) : Value = {
     val stream = Lexer.lex(string)
     parser.parse(stream, valueEnv, typeEnv, (t, vEnv, tEnv, _) => Right((t, vEnv, tEnv)), f => Left(f))
   }

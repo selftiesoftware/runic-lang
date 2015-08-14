@@ -97,8 +97,8 @@ class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTyp
       case BooleanToken(value: Boolean) :~: tail => success(BooleanExpr(value), valueEnv, typeEnv, tail)
       case SymbolToken("false") :~: tail => success(BooleanExpr(false), valueEnv, typeEnv, tail)
       case SymbolToken("true") :~: tail => success(BooleanExpr(true), valueEnv, typeEnv, tail)
-      case DoubleToken(value : Double) :~: tail => success(FloatExpr(value), valueEnv, typeEnv, tail)
-      case IntToken(value: Int) :~: tail => success(IntExpr(value), valueEnv, typeEnv, tail)
+      case DoubleToken(value : Double) :~: tail => success(NumberExpr(value), valueEnv, typeEnv, tail)
+      case IntToken(value: Int) :~: tail => success(NumberExpr(value), valueEnv, typeEnv, tail)
       case StringToken(value : String) :~: tail => success(StringExpr(value), valueEnv, typeEnv, tail)
 
       case SymbolToken(name) :~: tail =>
@@ -183,13 +183,12 @@ class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTyp
     def parseValueToken(value : Token) : Either[String, Expr] = {
       value match {
         case SymbolToken(name) => valueEnv.get(name) match {
-          case Some(f : FloatExpr) => Right(f)
-          case Some(i : IntExpr) => Right(i)
+          case Some(f : NumberExpr) => Right(f)
           case Some(x) => Left(Error.TYPE_MISMATCH("numeric reference", x.toString))
           case None => Left(Error.REFERENCE_NOT_FOUND(name))
         }
-        case IntToken(value: Int) => Right(IntExpr(value))
-        case DoubleToken(value : Double) => Right(FloatExpr(value))
+        case IntToken(value: Int) => Right(NumberExpr(value))
+        case DoubleToken(value : Double) => Right(NumberExpr(value))
         case e => Left(Error.SYNTAX_ERROR("a numeric value or reference to a numeric value", e.toString))
       }
     }
@@ -236,11 +235,6 @@ class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTyp
   private def parseUntil(tokens: LiveStream[Token], token : Token, valueEnv : ValueEnv, typeEnv : TypeEnv,
                          success : SuccessCont, failure: FailureCont): Value = {
     parseUntil(parse, tokens, stream => stream.head.toString.equals(token.toString), valueEnv, typeEnv, success, failure)
-  }
-
-  private def parseUntil(tokens: LiveStream[Token], condition : LiveStream[Token] => Boolean, valueEnv : ValueEnv,
-                         typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont): Value = {
-    parseUntil(parse, tokens, condition, valueEnv, typeEnv, success, failure)
   }
 
   private def parseUntil(parseFunction : (LiveStream[Token], ValueEnv, TypeEnv, SuccessCont, FailureCont) => Value,

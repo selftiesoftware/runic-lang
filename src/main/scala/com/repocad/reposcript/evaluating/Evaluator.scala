@@ -7,13 +7,13 @@ import com.repocad.reposcript.{Printer, _}
 /**
  * An evaluator to evaluate a list of [[Expr]]
  */
-class Evaluator(parser : Parser) {
+class Evaluator(parser : Parser, defaultEnv : Env) {
 
   private val remoteCache : RemoteCache = parser.remoteCache
   
   def eval(expr : Expr, printer : Printer[_]) : Value = {
     try {
-      eval(expr, Environment.getEvaluatorEnv(printer)).left.map(e => {
+      eval(expr, defaultEnv ++ printer.toEvaluatorEnv).left.map(e => {
         println("Error when evaluating: " + e)
         e
       })
@@ -62,22 +62,6 @@ class Evaluator(parser : Parser) {
         }
 
       //case objectExpr : ObjectExpr => Right(env.+(objectExpr.name -> objectExpr), objectExpr)
-
-      /*case RangeExpr(name, from, to) =>
-        val fromOption: Either[String, Double] = env.get(name).map {
-          case i: Int => Right(i + 1d)
-          case i: Double => Right(i + 1)
-          case x => Left(s"Cannot parse $x to int")
-        }.getOrElse(from.value)
-
-        val toOption = getValue[Double](to, env)
-        fromOption.right.flatMap(fromValue => toOption.right.flatMap(toValue => {
-          Right((env + (name -> fromValue)) -> (fromValue <= toValue))
-        }))
-
-      case RefExpr(name, t) => env.get(name).fold(Left(s"Could not find $name in scope")) {
-        case
-      }*/
 
       case CallExpr(name, t, params) =>
         env.get(name).fold[Value](Left(s"Failed to find function '$name'. Please check if it has been declared.")) {
@@ -209,14 +193,16 @@ class Evaluator(parser : Parser) {
       case UnitExpr => Right(env -> Unit)
       case LoopExpr(loopCounterExpr: DefExpr, loopEnd : Expr, body: Expr) =>
         eval(loopCounterExpr.value, env) match {
-          case Right((loopStartEnv : Env, loopStart : Int)) =>
+          case Right((loopStartEnv : Env, loopStartDouble : Double)) =>
             eval(loopEnd, env) match {
-              case Right((_, loopEnd : Int)) =>
+              case Right((_, loopEndDouble : Double)) =>
+                val loopStartInt = loopStartDouble.toInt
+                val loopEndInt = loopEndDouble.toInt
                 /* Note to self: Too much recursion error when looping recursively */
                 var loopEnv: Env = loopStartEnv
                 var lastResult: Any = Unit
                 var lastError: Option[String] = None
-                for (loopCounter <- loopStart until loopEnd if lastError.isEmpty) {
+                for (loopCounter <- loopStartInt until loopEndInt if lastError.isEmpty) {
                   loopEnv = loopEnv.updated(loopCounterExpr.name, loopCounter)
                   eval(body, loopEnv).fold(s => {
                     lastError = Some(s); s
@@ -226,7 +212,7 @@ class Evaluator(parser : Parser) {
                   })
                 }
                 lastError.map(Left(_)).getOrElse(Right(loopEnv.filter(t => env.contains(t._1)) -> lastResult))
-              case Right((_, x)) => Left(Error.TYPE_MISMATCH("integer", x.toString))
+              case Right((_, x)) => Left(Error.TYPE_MISMATCH("number", x.toString))
               case Left(x) => Left(x)
             }
 

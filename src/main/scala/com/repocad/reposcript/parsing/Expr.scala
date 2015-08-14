@@ -25,6 +25,4 @@ case class LoopExpr(loopCounter : DefExpr, loopEnd : Expr, body : Expr) extends 
 trait ValueExpr[T] extends Expr { val value : T }
 case class BooleanExpr(value : Boolean) extends ValueExpr[Boolean] { val t = BooleanType }
 case class StringExpr(value : String) extends ValueExpr[String] { val t = StringType }
-trait NumberExpr[T] extends ValueExpr[T]
-case class FloatExpr(value : Double) extends NumberExpr[Double] { val t = FloatType }
-case class IntExpr(value : Int) extends NumberExpr[Int] { val t = IntType }
+case class NumberExpr(value : Double) extends ValueExpr[Double] { val t = NumberType }

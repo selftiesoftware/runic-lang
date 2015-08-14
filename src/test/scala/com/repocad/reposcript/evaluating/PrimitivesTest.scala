@@ -8,15 +8,12 @@ import org.scalatest.{FlatSpec, Matchers}
 class PrimitivesTest extends FlatSpec with MockFactory with Matchers {
 
   val mockPrinter : Printer[Any] = mock[Printer[Any]]
-  val defaultEnv = Environment.getEvaluatorEnv(mockPrinter)
+  val defaultEnv = Environment.evaluatorEnv
   val mockParser = new Parser(mock[HttpClient], Map(), parsing.emptyTypeEnv)
-  val evaluator = new Evaluator(mockParser)
+  val evaluator = new Evaluator(mockParser, defaultEnv)
 
   def evalPrimitive[T](operand : String, arg1 : Int, arg2 : Int, expected : T) = {
-    evaluator.eval(CallExpr(operand, NumberType, Seq(IntExpr(arg1), IntExpr(arg2))), defaultEnv) should equal (Right(defaultEnv -> expected))
-    evaluator.eval(CallExpr(operand, NumberType, Seq(FloatExpr(arg1), FloatExpr(arg2))), defaultEnv) should equal (Right(defaultEnv -> expected))
-    evaluator.eval(CallExpr(operand, NumberType, Seq(IntExpr(arg1), FloatExpr(arg2))), defaultEnv) should equal (Right(defaultEnv -> expected))
-    evaluator.eval(CallExpr(operand, NumberType, Seq(FloatExpr(arg1), FloatExpr(arg2))), defaultEnv) should equal (Right(defaultEnv -> expected))
+    evaluator.eval(CallExpr(operand, NumberType, Seq(NumberExpr(arg1), NumberExpr(arg2))), defaultEnv) should equal (Right(defaultEnv -> expected))
   }
 
   "An evaluator for primitive expressions" should "evaluate a plus expression" in {
