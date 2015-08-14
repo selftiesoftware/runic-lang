@@ -64,7 +64,15 @@ class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTyp
 
       // Blocks
       case PunctToken("{") :~: tail => parseUntil(tail, PunctToken("}"), valueEnv, typeEnv, success, failure)
-      case PunctToken("(") :~: tail => parseUntil(tail, PunctToken(")"), valueEnv, typeEnv, success, failure)
+      case PunctToken("(") :~: tail => parseUntil(tail, PunctToken(")"), valueEnv, typeEnv, (expr, newValueEnv, newTypeEnv, exprTail) => {
+        exprTail match {
+          case SymbolToken(functionName) :~: functionTail if valueEnv.get(functionName).filter(_.isInstanceOf[FunctionExpr])
+              .exists(_.asInstanceOf[FunctionExpr].params.size == 2) =>
+            val funExpr = valueEnv.get(functionName).get.asInstanceOf[FunctionExpr]
+            parseBackwardsReference(expr, funExpr, functionTail, valueEnv, typeEnv, success, failure)
+          case _ => success(expr, newValueEnv, newTypeEnv, exprTail)
+        }
+      }, failure)
 
       // References to Functions
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
@@ -82,15 +90,12 @@ class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTyp
         }
 
       // References to Operations
-      case (firstToken : Token) :~: SymbolToken(functionName) :~: (secondToken : Token) :~: tail
+      case (firstToken : Token) :~: SymbolToken(functionName) :~: tail
         if valueEnv.get(functionName).filter(_.isInstanceOf[FunctionExpr])
           .exists(_.asInstanceOf[FunctionExpr].params.size == 2) =>
         val funExpr = valueEnv.get(functionName).get.asInstanceOf[FunctionExpr]
-        parse(LiveStream(Iterable(firstToken)), valueEnv, typeEnv, (firstParam, _, _, _) => {
-          parse(LiveStream(Iterable(secondToken)), valueEnv, typeEnv, (secondParam, _, _, _) => {
-            verifySimilarTypes(functionName, funExpr.params, Seq(firstParam, secondParam), typeEnv).map(failure)
-              .getOrElse(success(CallExpr(functionName, funExpr.t, Seq(firstParam, secondParam)), valueEnv, typeEnv, tail))
-          }, failure)
+        parse(LiveStream(Iterable(firstToken)), valueEnv, typeEnv, (firstExpr, _, _, _) => {
+          parseBackwardsReference(firstExpr, funExpr, tail, valueEnv, typeEnv, success, failure)
         }, failure)
 
       // Values
@@ -111,6 +116,15 @@ class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTyp
 
       case xs => failure(s"Unrecognised token pattern $xs")
     }
+  }
+
+  private def parseBackwardsReference(firstExpr : Expr, funExpr : FunctionExpr, tokens : LiveStream[Token],
+                                      valueEnv : ValueEnv, typeEnv : TypeEnv, success : SuccessCont,
+                                      failure : FailureCont) : Value = {
+    parse(tokens, valueEnv, typeEnv, (secondExpr, _, _, secondTail) => {
+      verifySimilarTypes(funExpr.name, funExpr.params, Seq(firstExpr, secondExpr), typeEnv).map(failure)
+        .getOrElse(success(CallExpr(funExpr.name, funExpr.t, Seq(firstExpr, secondExpr)), valueEnv, typeEnv, secondTail))
+    }, failure)
   }
 
   private def parseDefinition(tokens : LiveStream[Token], valueEnv : ValueEnv, typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont) : Value = {

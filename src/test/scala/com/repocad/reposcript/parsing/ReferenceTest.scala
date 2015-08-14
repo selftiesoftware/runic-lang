@@ -1,7 +1,5 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.Environment
-
 class ReferenceTest extends ParsingTest {
 
   "Reference parsing" should "reference an existing definition" in {
@@ -25,6 +23,29 @@ class ReferenceTest extends ParsingTest {
   it should "infer a super type of a typed argument in a function" in {
     parseString("{ def a(b as Number) = 1 a(3) }", Map(), defaultTypeEnv) should equal(
       Right(BlockExpr(Seq(FunctionExpr("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)), CallExpr("a", NumberType, Seq(NumberExpr(3))))), Map(), defaultTypeEnv)
+    )
+  }
+
+  "Consecutive function calls" should "parse operations recursively" in {
+    parseString("1 + 2 + 3").right.get._1 should equal(
+      CallExpr("+", NumberType, Seq(NumberExpr(1),
+        CallExpr("+", NumberType, Seq(NumberExpr(2), NumberExpr(3)))))
+    )
+  }
+  it should "parse expressions in parenthesis before others" in {
+    parseString("(1 + 2) + 3").right.get._1 should equal(
+      CallExpr("+", NumberType, Seq(BlockExpr(Seq(
+        CallExpr("+", NumberType, Seq(NumberExpr(1), NumberExpr(2))))),
+        NumberExpr(3))
+      )
+    )
+  }
+  it should "parse expressions in parenthesis first, even when last" in {
+    parseString("1 + (2 + 3)").right.get._1 should equal(
+      CallExpr("+", NumberType, Seq(
+        NumberExpr(1),
+        BlockExpr(Seq(CallExpr("+", NumberType, Seq(NumberExpr(2), NumberExpr(3))))))
+      )
     )
   }
 
