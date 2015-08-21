@@ -52,10 +52,6 @@ class ControlsExprTest extends FlatSpec with MockFactory with Matchers {
 //    ) should equal(Right(mockEnv -> ()))
 //  }
 
- //  "evaluate an import statement" in {
- //
- //  }
-
    "A value evaluator" should "evaluate a boolean expression" in {
      evaluator.eval(BooleanExpr(false), emptyEnv) should equal(Right(emptyEnv -> false))
    }

@@ -93,13 +93,20 @@ trait Printer[T] {
 
 object Printer {
 
-  lazy val toParserEnv : parsing.ValueEnv = {
-    Map(
+  lazy val emptyEvaluatorEnv : evaluating.Env = Map(
+    "arc"  -> ((env : evaluating.Env, a : Double, b : Double, c : Double, d : Double, e : Double) => Unit),
+    "bezier" -> ((env : evaluating.Env, a : Double, b : Double, c : Double, d : Double, e : Double, f : Double) => Unit),
+    "circle" -> ((env : evaluating.Env, a : Double, b : Double, c : Double) => Unit),
+    "line" -> ((env : evaluating.Env, a : Double, b : Double, c : Double, d : Double) => Unit),
+    "text" -> ((env : evaluating.Env, a : Double, b : Double, c : Double, d : String) => Unit)
+  )
+
+  lazy val toParserEnv : parsing.ValueEnv = Map(
       "arc"  -> FunctionExpr("arc", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("r", NumberType), RefExpr("sAngle", NumberType), RefExpr("eAngle", NumberType)), UnitExpr),
-      "bezier" -> FunctionExpr("arc", Seq(RefExpr("x1", NumberType), RefExpr("y1", NumberType), RefExpr("x2", NumberType), RefExpr("y2", NumberType), RefExpr("x3", NumberType), RefExpr("y3", NumberType), RefExpr("x4", NumberType), RefExpr("y4", NumberType)), UnitExpr),
-      "circle" -> FunctionExpr("arc", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("r", NumberType)), UnitExpr),
+      "bezier" -> FunctionExpr("bezier", Seq(RefExpr("x1", NumberType), RefExpr("y1", NumberType), RefExpr("x2", NumberType), RefExpr("y2", NumberType), RefExpr("x3", NumberType), RefExpr("y3", NumberType), RefExpr("x4", NumberType), RefExpr("y4", NumberType)), UnitExpr),
+      "circle" -> FunctionExpr("circle", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("r", NumberType)), UnitExpr),
       "line" -> FunctionExpr("line", Seq(RefExpr("x1", NumberType), RefExpr("y1", NumberType), RefExpr("x2", NumberType), RefExpr("y2", NumberType)), UnitExpr),
-      "text" -> FunctionExpr("arc", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("h", NumberType), RefExpr("t", StringType)), UnitExpr)
+      "text" -> FunctionExpr("text", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("h", NumberType), RefExpr("t", StringType)), UnitExpr)
     )
-  }
+
 }

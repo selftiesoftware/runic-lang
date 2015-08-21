@@ -11,7 +11,7 @@ class RemoteCache(httpClient: HttpClient) {
   def contains(scriptName : String) : Boolean = scriptCache.contains(scriptName)
 
   def get(scriptName : String, parser : (String) => parsing.Value) : parsing.Value = {
-      scriptCache.getOrElse(scriptName, download(scriptName, parser))
+    scriptCache.getOrElse(scriptName, download(scriptName, parser))
   }
 
   private def download(scriptName : String, parser : (String) => parsing.Value) : parsing.Value = {

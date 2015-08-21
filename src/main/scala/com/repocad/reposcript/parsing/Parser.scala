@@ -6,7 +6,7 @@ import com.repocad.reposcript.{HttpClient, RemoteCache}
 /**
  * Parses code into drawing expressions (AST)
  */
-class Parser(val httpClient : HttpClient, defaultValueEnv : ValueEnv, defaultTypeEnv : TypeEnv) {
+class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val defaultTypeEnv : TypeEnv) {
 
   val remoteCache = new RemoteCache(httpClient)
 
