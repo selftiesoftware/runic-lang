@@ -23,6 +23,9 @@ class DrawingTest extends ParsingTest with MockFactory {
   it should "parse a text call" in {
     parseString("text(1 2 3 \"hello\")", env).right.get._1 should equal (CallExpr("text", UnitType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), StringExpr("hello"))))
   }
+  it should "parse a text call with a number" in {
+    parseString("text(1 2 3 12.3)", env).right.get._1 should equal (CallExpr("text", UnitType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(12.3))))
+  }
   it should "draw a text" in {
     println(parseString("{def a as Number = 2 + 3 \n text(a 0 30 \"test\")").right.get)
   }
