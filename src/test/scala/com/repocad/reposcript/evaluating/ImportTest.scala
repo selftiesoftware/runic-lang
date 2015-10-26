@@ -31,5 +31,14 @@ class ImportTest extends FlatSpec with MockFactory with Matchers {
     (mockClient.getSynchronous _).expects("get/test3").returning(Response(0, 4, "def a = 10"))
     evaluator.eval(BlockExpr(Seq(ImportExpr("test3"), RefExpr("a", NumberType))), evaluatorEnv).isRight should equal (true)
   }
+  it should "stack import definitions" in {
+    val mockClient2 = stub[HttpClient]
+    val newParser = new Parser(mockClient2, parserEnv, parsing.defaultTypeEnv)
+    val newEvaluator = new Evaluator(newParser, Map())
+    (mockClient2.getSynchronous _).when("get/test3").returns(Response(0, 4, "def a = 10"))
+    (mockClient2.getSynchronous _).when("get/test4").returns(Response(0, 4, "def b = 12"))
+    newEvaluator.eval(BlockExpr(Seq(ImportExpr("test3"), ImportExpr("test4"), RefExpr("a", NumberType), RefExpr("b", NumberType))), evaluatorEnv)
+      .isRight should equal (true)
+  }
 
 }
