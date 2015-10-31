@@ -18,11 +18,12 @@ class ReferenceTest extends ParsingTest {
     parseString("def a(b as Number) = c") should equal(Left(Error.REFERENCE_NOT_FOUND("c")))
   }
   it should "fail when giving a wrongly typed argument to a function" in {
-    parseString("{ def a(b as Number) = b a(\"hi\") }") should equal(Left(Error.TYPE_MISMATCH("NumberType", "StringType", "calling a")))
+    parseString("{ def a(b as Number) = b a(\"hi\") }") should equal(Left(Error.TYPE_MISMATCH("NumberType", "StringType", "calling 'a'")))
   }
   it should "infer a super type of a typed argument in a function" in {
-    parseString("{ def a(b as Number) = 1 a(3) }", ParserEnv()) should equal(
-      Right(BlockExpr(Seq(FunctionExpr("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)), CallExpr("a", NumberType, Seq(NumberExpr(3))))), ParserEnv())
+    val env = ParserEnv("Number", NumberType)
+    parseString("{ def a(b as Number) = 1 a(3) }", env) should equal(
+      Right(BlockExpr(Seq(FunctionExpr("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)), CallExpr("a", NumberType, Seq(NumberExpr(3))))), env)
     )
   }
 

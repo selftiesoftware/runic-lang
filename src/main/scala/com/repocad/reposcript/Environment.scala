@@ -13,7 +13,7 @@ object Environment {
   private val BooleanTypeExpr = new Expr { val t = BooleanType }
   private val NumberTypeExpr = new Expr { val t = NumberType }
 
-  private lazy val primiviteEnv : EnvMap = Map (
+  private val primitiveEnv : EnvMap = Map (
   // Calculation primitives
     "+" -> (FunctionExpr("+", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), NumberTypeExpr),
       (env: evaluating.Env, a: Any, b: Any) => RepoMath.plus(a, b)),
@@ -25,7 +25,7 @@ object Environment {
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.divide(a, b)),
     "<" -> (FunctionExpr("<", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), BooleanTypeExpr),
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.lessThan(a, b)),
-    "<=" -> (FunctionExpr("<", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), BooleanTypeExpr),
+    "<=" -> (FunctionExpr("<=", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), BooleanTypeExpr),
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.lessThanEquals(a, b)),
     ">" -> (FunctionExpr(">", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), BooleanTypeExpr),
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.lessThan(b, a)),
@@ -46,8 +46,17 @@ object Environment {
       (_ : evaluating.Env, double : Double) => double.toInt)
   )
 
-  lazy val evaluatorEnv : evaluating.Env = primiviteEnv.map(t => t._1 -> t._2._2)
+  private val primitiveTypeEnv = Map[String, Expr](
+    "Any" -> AnyType,
+    "Boolean" -> BooleanType,
+    "Number" -> NumberType,
+    "String" -> StringType
+  )
 
-  lazy val parserEnv : ParserEnv = ParserEnv.ofMap(primiviteEnv.map(t => t._1 -> t._2._1)) ++ Printer.toParserEnv
+  lazy val evaluatorEnv : evaluating.Env = primitiveEnv.map(t => t._1 -> t._2._2)
+
+  // Primitive types plus primitive operations plus printer operations
+  lazy val parserEnv : ParserEnv =
+    ParserEnv.ofMap(primitiveTypeEnv ++ primitiveEnv.map(t => t._1 -> t._2._1)) ++ Printer.toParserEnv
 
 }

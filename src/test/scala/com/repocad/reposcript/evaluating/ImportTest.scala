@@ -10,7 +10,7 @@ class ImportTest extends FlatSpec with MockFactory with Matchers {
   val mockPrinter : Printer[Any] = mock[Printer[Any]]
   val evaluatorEnv : Env = Map("line" -> ((funEnv : Env, a : Double, b : Double, c : Double, d : Double) => mockPrinter.line(a, b, c, d)))
   val mockClient = mock[HttpClient]
-  val mockParser = new Parser(mockClient, ParserEnv())
+  val mockParser = new Parser(mockClient, Environment.parserEnv)
   val evaluator = new Evaluator(mockParser, Map())
 
   "An import evaluator" should "not evaluate printer calls in imports" in {

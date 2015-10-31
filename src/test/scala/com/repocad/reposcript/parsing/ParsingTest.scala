@@ -1,13 +1,13 @@
 package com.repocad.reposcript.parsing
 
 import com.repocad.reposcript.lexing.Lexer
-import com.repocad.reposcript.HttpClient
+import com.repocad.reposcript.{Environment, HttpClient}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
 trait ParsingTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
 
-  val emptyEnv = ParserEnv()
+  val emptyEnv = Environment.parserEnv
   val mockClient = mock[HttpClient]
   var parser : Parser = null
 
@@ -20,16 +20,19 @@ trait ParsingTest extends FlatSpec with Matchers with MockFactory with BeforeAnd
   }
 
   def testEquals(expected : Expr, expression : String, env: ParserEnv = emptyEnv) = {
+    parser = new Parser(mockClient, env)
     val either = parseString(expression, env).right.map(_._1)
     either should equal(Right(expected))
   }
 
   def parseString(string : String, env: ParserEnv = emptyEnv) : Value = {
+    parser = new Parser(mockClient, env)
     val stream = Lexer.lex(string)
     parser.parse(stream, env, (t, newEnv, _) => Right((t, newEnv)), f => Left(f))
   }
 
-  def parseStringAll(string : String) = {
+  def parseStringAll(string : String, env : ParserEnv = emptyEnv) = {
+    parser = new Parser(mockClient, env)
     val stream = Lexer.lex(string)
     parser.parse(stream)
   }

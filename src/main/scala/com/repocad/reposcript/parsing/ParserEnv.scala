@@ -27,7 +27,7 @@ case class ParserEnv(private val innerEnv : Map[String, Map[AnyType, Expr]]) {
   def getAsType(key : String, t : AnyType) : Option[Expr] = innerEnv.get(key).flatMap(_.find(_._1 == t).map(_._2))
 
   def getType(key : String) : Option[AnyType] = innerEnv.get(key)
-    .map(map => map.find(overloaded => overloaded._2.isInstanceOf[AnyType]).map(_._2).asInstanceOf[AnyType])
+    .flatMap(map => map.find(overloaded => overloaded._2.isInstanceOf[AnyType])).map(_._2.asInstanceOf[AnyType])
 
   def -(key : String, t : AnyType) : ParserEnv = innerEnv.get(key).map(_.-(t))
     .map(newInnerMap => innerEnv + (key -> newInnerMap)).map(new ParserEnv(_)).getOrElse(this)

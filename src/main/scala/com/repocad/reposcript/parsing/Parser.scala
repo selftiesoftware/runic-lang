@@ -296,8 +296,8 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       Some(Error.EXPECTED_PARAMETER_NUMBER(functionName, expected.size, actual.size))
     } else {
       expected.zip(actual).collect {
-        case (expectedParam, actualParam) if expectedParam.t.isChild(actualParam.t) =>
-          return Some(Error.TYPE_MISMATCH(expectedParam.t.toString, actualParam.t.toString, s"calling $functionName"))
+        case (expectedParam, actualParam) if !expectedParam.t.isChild(actualParam.t) =>
+          return Some(Error.TYPE_MISMATCH(expectedParam.t.toString, actualParam.t.toString, s"calling '$functionName'"))
       }
       None
     }

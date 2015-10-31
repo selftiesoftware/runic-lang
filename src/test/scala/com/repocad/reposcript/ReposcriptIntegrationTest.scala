@@ -10,7 +10,7 @@ class ReposcriptIntegrationTest extends FlatSpec with Matchers with MockFactory 
 
   val mockClient = mock[HttpClient]
   val mockPrinter : Printer[_] = mock[Printer[Any]]
-  val parser = new Parser(mockClient, ParserEnv())
+  val parser = new Parser(mockClient, Environment.parserEnv)
   val evaluator = new Evaluator(parser, Environment.evaluatorEnv)
 
   "Reposcript" should "parse a plus statement" in {
