@@ -26,3 +26,28 @@ trait ValueExpr[T] extends Expr { val value : T }
 case class BooleanExpr(value : Boolean) extends ValueExpr[Boolean] { val t = BooleanType }
 case class StringExpr(value : String) extends ValueExpr[String] { val t = StringType }
 case class NumberExpr(value : Double) extends ValueExpr[Double] { val t = NumberType }
+
+/**
+ * The type from where all data types in RepoScript inherit.
+ */
+trait AnyType extends Expr
+
+case object AnyType extends AnyType { val t = this }
+
+case class CollectionType(content : AnyType) extends AnyType { val t = this }
+
+case object BooleanType extends AnyType { val t = this }
+case object NumberType extends AnyType { val t = this }
+case object StringType extends AnyType { val t = this }
+case object UnitType extends AnyType { val t = this }
+
+abstract class FunctionType extends AnyType {
+  val returnType : AnyType
+}
+case class Function0Type(returnType : AnyType) extends FunctionType { val t = this }
+case class Function1Type(first : AnyType, returnType : AnyType) extends FunctionType { val t = this }
+case class Function2Type(first : AnyType, second : AnyType, returnType : AnyType) extends FunctionType { val t = this }
+case class Function3Type(first : AnyType, second : AnyType, third : AnyType, returnType : AnyType)
+  extends FunctionType { val t = this }
+case class Function4Type(first : AnyType, second : AnyType, third : AnyType, fourth : AnyType, returnType : AnyType)
+  extends FunctionType { val t = this }

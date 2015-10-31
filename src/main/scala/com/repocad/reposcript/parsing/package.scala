@@ -17,19 +17,6 @@ package object parsing {
   type FailureCont = String => Value
   type SuccessCont = (Expr, ValueEnv, TypeEnv, LiveStream[Token]) => Value
 
-  val defaultTypeEnv : TypeEnv = DirectedGraph[AnyType](AnyType)
-    /* Primitives */
-    .union(AnyType, BooleanType)
-    .union(AnyType, StringType)
-    .union(AnyType, UnitType)
-    .union(AnyType, NumberType)
-    /* Functions */
-    .union(AnyType, FunctionType)
-    .union(FunctionType, Function1Type)
-    .union(FunctionType, Function2Type)
-    .union(FunctionType, Function3Type)
-    .union(FunctionType, Function4Type)
-
   val emptyTypeEnv : TypeEnv = new DirectedGraph(Map(), AnyType)
 
   lazy val stringTypeMap : Map[String, AnyType] = Map(
