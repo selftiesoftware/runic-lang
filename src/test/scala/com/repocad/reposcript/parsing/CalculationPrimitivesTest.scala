@@ -5,7 +5,7 @@ import com.repocad.reposcript.Environment
 class CalculationPrimitivesTest extends ParsingTest {
 
   def testCallExpr(input : String, a : Int, b : Int, op : String, typ : AnyType) =
-    parseString(input, Environment.parserValueEnv).right.get._1 should equal (CallExpr(op, typ, Seq(NumberExpr(a), NumberExpr(b))))
+    parseString(input, Environment.parserEnv).right.get._1 should equal (CallExpr(op, typ, Seq(NumberExpr(a), NumberExpr(b))))
 
   "A parser using default calculation primitives" should "parse a plus function" in {
     testCallExpr("10 + 10", 10, 10, "+", NumberType)

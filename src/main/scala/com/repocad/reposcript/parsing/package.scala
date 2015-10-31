@@ -1,7 +1,6 @@
 package com.repocad.reposcript
 
 import com.repocad.reposcript.lexing.{Token, LiveStream}
-import com.repocad.reposcript.util.DirectedGraph
 
 /**
  * The parsing package contains code for converting [[com.repocad.reposcript.lexing.Token]]s into an Abstract Syntax Tree
@@ -9,15 +8,10 @@ import com.repocad.reposcript.util.DirectedGraph
  */
 package object parsing {
 
-  type TypeEnv = DirectedGraph[AnyType]
-  type ValueEnv = Map[String, Expr]
-
-  type Value = Either[String, (Expr, ValueEnv, TypeEnv)]
+  type Value = Either[String, (Expr, ParserEnv)]
 
   type FailureCont = String => Value
-  type SuccessCont = (Expr, ValueEnv, TypeEnv, LiveStream[Token]) => Value
-
-  val emptyTypeEnv : TypeEnv = new DirectedGraph(Map(), AnyType)
+  type SuccessCont = (Expr, ParserEnv, LiveStream[Token]) => Value
 
   lazy val stringTypeMap : Map[String, AnyType] = Map(
     "Boolean" -> BooleanType,

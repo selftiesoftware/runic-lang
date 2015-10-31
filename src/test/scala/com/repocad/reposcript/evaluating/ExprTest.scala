@@ -11,7 +11,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class ExprTest extends FlatSpec with MockFactory with Matchers {
 
   val emptyEnv : Env = Map[String, Any]()
-  val mockParser = new Parser(mock[HttpClient], Map(), parsing.emptyTypeEnv)
+  val mockParser = new Parser(mock[HttpClient], ParserEnv())
   val evaluator = new Evaluator(mockParser, Map())
 
   "An expression evaluator" should "evaluate an empty block expression" in {

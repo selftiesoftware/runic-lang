@@ -48,6 +48,6 @@ object Environment {
 
   lazy val evaluatorEnv : evaluating.Env = primiviteEnv.map(t => t._1 -> t._2._2)
 
-  lazy val parserValueEnv : parsing.ValueEnv = primiviteEnv.map(t => t._1 -> t._2._1) ++ Printer.toParserEnv
+  lazy val parserEnv : ParserEnv = ParserEnv.ofMap(primiviteEnv.map(t => t._1 -> t._2._1)) ++ Printer.toParserEnv
 
 }

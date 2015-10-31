@@ -9,7 +9,7 @@ class PrimitivesTest extends FlatSpec with MockFactory with Matchers {
 
   val mockPrinter : Printer[Any] = mock[Printer[Any]]
   val defaultEnv = Environment.evaluatorEnv
-  val mockParser = new Parser(mock[HttpClient], Map(), parsing.emptyTypeEnv)
+  val mockParser = new Parser(mock[HttpClient], ParserEnv())
   val evaluator = new Evaluator(mockParser, defaultEnv)
 
   def evalPrimitive[T](operand : String, arg1 : Int, arg2 : Int, expected : T) = {

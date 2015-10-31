@@ -6,7 +6,7 @@ import org.scalamock.scalatest.MockFactory
 class DrawingTest extends ParsingTest with MockFactory {
 
   val mockPrinter : Printer[Any] = mock[Printer[Any]]
-  val env = Environment.parserValueEnv
+  val env = ParserEnv()
 
   "A parser using default drawing environments" should "parse an arc call" in {
     parseString("arc(1 2 3 4 5)", env).right.get._1 should equal (CallExpr("arc", UnitType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(4), NumberExpr(5))))

@@ -12,8 +12,8 @@ class ImportTest extends ParsingTest {
   it should "include the imported environment for further parsing" in {
     (mockClient.getSynchronous _).expects("get/a").returning(Response(0, 4, "def b = 10"))
 
-    parseString("import a b", Map(), emptyTypeEnv) should equal(
-      Right(ImportExpr("a"), Map("b" -> NumberExpr(10)), emptyTypeEnv)
+    parseString("import a b", ParserEnv()) should equal(
+      Right(ImportExpr("a"), Map("b" -> NumberExpr(10)), ParserEnv())
     )
   }
 

@@ -10,7 +10,7 @@ class PrinterTest extends FlatSpec with MockFactory with Matchers {
 
   val mockPrinter : Printer[Any] = mock[Printer[Any]]
   val env : Env = Map("line" -> ((funEnv : Env, a : Double, b : Double, c : Double, d : Double) => mockPrinter.line(a, b, c, d)))
-  val mockParser = new Parser(mock[HttpClient], Map(), parsing.emptyTypeEnv)
+  val mockParser = new Parser(mock[HttpClient], ParserEnv())
   val evaluator = new Evaluator(mockParser, Map())
 
   "A evaluator" should "evaluate a line call" in {

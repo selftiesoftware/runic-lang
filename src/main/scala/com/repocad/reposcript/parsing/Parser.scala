@@ -6,7 +6,7 @@ import com.repocad.reposcript.{HttpClient, RemoteCache}
 /**
  * Parses code into drawing expressions (AST)
  */
-class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val defaultTypeEnv : TypeEnv) {
+class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
 
   val remoteCache = new RemoteCache(httpClient)
 
@@ -18,14 +18,14 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
 
   def parse(tokens : LiveStream[Token], spillEnvironment : Boolean) : Value = {
     try {
-      parseUntil(parse, tokens, _ => false, defaultValueEnv, defaultTypeEnv, (expr, values, types, _) => Right((expr, values, types)), e => Left(e), spillEnvironment)
+      parseUntil(parse, tokens, _ => false, defaultEnv, (expr, values, _) => Right((expr, values)), e => Left(e), spillEnvironment)
     } catch {
       case e : InternalError => Left("Script too large (sorry - we're working on it!)")
       case e : Exception => Left(e.getLocalizedMessage)
     }
   }
 
-  def parse(tokens: LiveStream[Token], valueEnv : ValueEnv, typeEnv : TypeEnv, success: SuccessCont, failure: FailureCont): Value = {
+  def parse(tokens: LiveStream[Token], env : ParserEnv, success: SuccessCont, failure: FailureCont): Value = {
     tokens match {
 
       // Import
@@ -33,56 +33,56 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
         val res = remoteCache.get(script, code => parse(Lexer.lex(code), spillEnvironment = true))
         res match {
           case Left(error) => failure(error)
-          case Right((expr, importValueEnv, importTypeEnv)) =>
-            success(ImportExpr(script), importValueEnv, importTypeEnv, tail)
+          case Right((expr, importEnv)) =>
+            success(ImportExpr(script), importEnv, tail)
         }
 
       case SymbolToken("if") :~: tail =>
-        parse(tail, valueEnv, typeEnv, (condition, _, _, conditionTail) => {
+        parse(tail, env, (condition, _, conditionTail) => {
           if (condition.t != BooleanType) {
             failure(Error.TYPE_MISMATCH(BooleanType.toString, condition.t.toString))
           } else {
-            parse(conditionTail, valueEnv, typeEnv, (ifBody, _, _, ifBodyTail) => {
+            parse(conditionTail, env, (ifBody, _, ifBodyTail) => {
               ifBodyTail match {
                 case SymbolToken("else") :~: elseIfTail =>
-                  parse(elseIfTail, valueEnv, typeEnv, (elseBody, _, _, elseBodyTail) => {
-                    success(IfExpr(condition, ifBody, elseBody, typeEnv.commonParent(ifBody.t, elseBody.t)),
-                      valueEnv, typeEnv, elseBodyTail)
+                  parse(elseIfTail, env, (elseBody, _, elseBodyTail) => {
+                    success(IfExpr(condition, ifBody, elseBody, ifBody.t.findCommonParent(elseBody.t)),
+                      env, elseBodyTail)
                   }, failure)
-                case _ => success(IfExpr(condition, ifBody, UnitExpr, typeEnv.commonParent(ifBody.t, UnitType)),
-                  valueEnv, typeEnv, ifBodyTail)
+                case _ => success(IfExpr(condition, ifBody, UnitExpr, ifBody.t.findCommonParent(UnitType)),
+                  env, ifBodyTail)
               }
             }, failure)
           }
         }, failure)
 
       // Loops
-      case SymbolToken("repeat") :~: tail => parseLoop(tail, valueEnv, typeEnv, success, failure)
+      case SymbolToken("repeat") :~: tail => parseLoop(tail, env, success, failure)
 
       // Functions and objects
-      case SymbolToken("def") :~: tail => parseDefinition(tail, valueEnv, typeEnv, success, failure)
+      case SymbolToken("def") :~: tail => parseDefinition(tail, env, success, failure)
 
       // Blocks
-      case PunctToken("{") :~: tail => parseUntil(tail, PunctToken("}"), valueEnv, typeEnv, success, failure)
-      case PunctToken("(") :~: tail => parseUntil(tail, PunctToken(")"), valueEnv, typeEnv, (expr, newValueEnv, newTypeEnv, exprTail) => {
+      case PunctToken("{") :~: tail => parseUntil(tail, PunctToken("}"), env, success, failure)
+      case PunctToken("(") :~: tail => parseUntil(tail, PunctToken(")"), env, (expr, newValueEnv, exprTail) => {
         exprTail match {
-          case SymbolToken(functionName) :~: functionTail if valueEnv.get(functionName).filter(_.isInstanceOf[FunctionExpr])
+          case SymbolToken(functionName) :~: functionTail if env.get(functionName).filter(_.isInstanceOf[FunctionExpr])
               .exists(_.asInstanceOf[FunctionExpr].params.size == 2) =>
-            val funExpr = valueEnv.get(functionName).get.asInstanceOf[FunctionExpr]
-            parseBackwardsReference(expr, funExpr, functionTail, valueEnv, typeEnv, success, failure)
-          case _ => success(expr, newValueEnv, newTypeEnv, exprTail)
+            val funExpr = env.get(functionName).get.asInstanceOf[FunctionExpr]
+            parseBackwardsReference(expr, funExpr, functionTail, env, success, failure)
+          case _ => success(expr, newValueEnv, exprTail)
         }
       }, failure)
 
       // References to Functions
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        valueEnv.get(name) match {
+        env.get(name) match {
           case Some(function : FunctionExpr) =>
-            parseUntil(tail, PunctToken(")"), valueEnv, typeEnv, (params : Expr, newValueEnv : ValueEnv, newTypeEnv : TypeEnv, paramsTail : LiveStream[Token]) => {
+            parseUntil(tail, PunctToken(")"), env, (params : Expr, newEnv : ParserEnv, paramsTail : LiveStream[Token]) => {
               params match {
                 case BlockExpr(xs : Seq[RefExpr]) =>
-                  verifySimilarTypes(name, function.params, xs, typeEnv).map(failure)
-                    .getOrElse(success(CallExpr(name, function.body.t, xs), newValueEnv, newTypeEnv, paramsTail))
+                  verifySimilarTypes(name, function.params, xs, newEnv).map(failure)
+                    .getOrElse(success(CallExpr(name, function.body.t, xs), newEnv, paramsTail))
                 case xs => failure("Expected parameters for function call. Got " + xs)
               }
             }, failure)
@@ -91,45 +91,44 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
 
       // References to Operations
       case (firstToken : Token) :~: SymbolToken(functionName) :~: tail
-        if valueEnv.get(functionName).filter(_.isInstanceOf[FunctionExpr])
+        if env.get(functionName).filter(_.isInstanceOf[FunctionExpr])
           .exists(_.asInstanceOf[FunctionExpr].params.size == 2) =>
-        val funExpr = valueEnv.get(functionName).get.asInstanceOf[FunctionExpr]
-        parse(LiveStream(Iterable(firstToken)), valueEnv, typeEnv, (firstExpr, _, _, _) => {
-          parseBackwardsReference(firstExpr, funExpr, tail, valueEnv, typeEnv, success, failure)
+        val funExpr = env.get(functionName).get.asInstanceOf[FunctionExpr]
+        parse(LiveStream(Iterable(firstToken)), env, (firstExpr, _, _) => {
+          parseBackwardsReference(firstExpr, funExpr, tail, env, success, failure)
         }, failure)
 
       // Values
-      case BooleanToken(value: Boolean) :~: tail => success(BooleanExpr(value), valueEnv, typeEnv, tail)
-      case SymbolToken("false") :~: tail => success(BooleanExpr(false), valueEnv, typeEnv, tail)
-      case SymbolToken("true") :~: tail => success(BooleanExpr(true), valueEnv, typeEnv, tail)
-      case DoubleToken(value : Double) :~: tail => success(NumberExpr(value), valueEnv, typeEnv, tail)
-      case IntToken(value: Int) :~: tail => success(NumberExpr(value), valueEnv, typeEnv, tail)
-      case StringToken(value : String) :~: tail => success(StringExpr(value), valueEnv, typeEnv, tail)
+      case BooleanToken(value: Boolean) :~: tail => success(BooleanExpr(value), env, tail)
+      case SymbolToken("false") :~: tail => success(BooleanExpr(false), env, tail)
+      case SymbolToken("true") :~: tail => success(BooleanExpr(true), env, tail)
+      case DoubleToken(value : Double) :~: tail => success(NumberExpr(value), env, tail)
+      case IntToken(value: Int) :~: tail => success(NumberExpr(value), env, tail)
+      case StringToken(value : String) :~: tail => success(StringExpr(value), env, tail)
 
       case SymbolToken(name) :~: tail =>
-        valueEnv.get(name) match {
-          case Some(expr) => success(RefExpr(name, expr.t), valueEnv, typeEnv, tail)
+        env.get(name) match {
+          case Some(expr) => success(RefExpr(name, expr.t), env, tail)
           case _ => failure(Error.REFERENCE_NOT_FOUND(name))
         }
 
-      case stream if stream.isEmpty => success(UnitExpr, valueEnv, typeEnv, stream)
+      case stream if stream.isEmpty => success(UnitExpr, env, stream)
 
       case xs => failure(s"Unrecognised token pattern $xs")
     }
   }
 
   private def parseBackwardsReference(firstExpr : Expr, funExpr : FunctionExpr, tokens : LiveStream[Token],
-                                      valueEnv : ValueEnv, typeEnv : TypeEnv, success : SuccessCont,
-                                      failure : FailureCont) : Value = {
-    parse(tokens, valueEnv, typeEnv, (secondExpr, _, _, secondTail) => {
-      verifySimilarTypes(funExpr.name, funExpr.params, Seq(firstExpr, secondExpr), typeEnv).map(failure)
-        .getOrElse(success(CallExpr(funExpr.name, funExpr.t, Seq(firstExpr, secondExpr)), valueEnv, typeEnv, secondTail))
+                                      env : ParserEnv, success : SuccessCont, failure : FailureCont) : Value = {
+    parse(tokens, env, (secondExpr, _, secondTail) => {
+      verifySimilarTypes(funExpr.name, funExpr.params, Seq(firstExpr, secondExpr), env).map(failure)
+        .getOrElse(success(CallExpr(funExpr.name, funExpr.t, Seq(firstExpr, secondExpr)), env, secondTail))
     }, failure)
   }
 
-  private def parseDefinition(tokens : LiveStream[Token], valueEnv : ValueEnv, typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont) : Value = {
+  private def parseDefinition(tokens : LiveStream[Token], env : ParserEnv, success : SuccessCont, failure : FailureCont) : Value = {
     def parseFunctionParameters(parameterTokens : LiveStream[Token], success : (Seq[RefExpr], LiveStream[Token]) => Value, failure : FailureCont) = {
-      parseUntil(parseParameters, parameterTokens, _.head.tag.toString.equals(")"), valueEnv, typeEnv, (params, _, _, paramsTail) => {
+      parseUntil(parseParameters, parameterTokens, _.head.tag.toString.equals(")"), env, (params, _, paramsTail) => {
         params match {
           case BlockExpr(exprs) => success(exprs.asInstanceOf[Seq[RefExpr]], paramsTail)
           case _ => failure(Error.EXPECTED_PARAMETERS(params.toString))
@@ -141,7 +140,7 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
       parseFunctionParameters(parameterTokens, (params, paramsTail) => {
         paramsTail match {
           case SymbolToken("=") :~: functionTail =>
-            parseFunctionBody(functionTail, paramsEnv ++ params, (body, _, _, bodyTail) => success(params, body, bodyTail), failure)
+            parseFunctionBody(functionTail, paramsEnv ++ params, (body, _, bodyTail) => success(params, body, bodyTail), failure)
 
           case tail => failure(Error.SYNTAX_ERROR("=", tail.toString))
         }
@@ -149,7 +148,7 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
     }
 
     def parseFunctionBody(bodyTokens : LiveStream[Token], paramsEnv : Seq[RefExpr], success : SuccessCont, failureCont: FailureCont) : Value = {
-      parse(bodyTokens, valueEnv ++ paramsEnv.map(ref => ref.name -> ref).toMap, typeEnv, success, failure)
+      parse(bodyTokens, env ++ paramsEnv.map(ref => ref.name -> ref).toMap, success, failure)
     }
 
     tokens match {
@@ -159,13 +158,13 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
           case SymbolToken(name) :~: PunctToken("(") :~: functionTail =>
             parseFunctionParametersAndBody(functionTail, firstParams, (secondParams, body, bodyTail) => {
               val function = FunctionExpr(name, firstParams ++ secondParams, body)
-              success(function, valueEnv.+(name -> function), typeEnv, bodyTail)
+              success(function, env.+(name -> function), bodyTail)
             }, failure)
 
           case SymbolToken(name) :~: SymbolToken("=") :~: functionTail =>
-            parseFunctionBody(functionTail, firstParams, (body, _, _, bodyTail) => {
+            parseFunctionBody(functionTail, firstParams, (body, _, bodyTail) => {
               val function = FunctionExpr(name, firstParams, body)
-              success(function, valueEnv.+(name -> function), typeEnv, bodyTail)
+              success(function, env.+(name -> function), bodyTail)
             }, failure)
 
         }
@@ -174,31 +173,30 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
         parseFunctionParametersAndBody(tail, Seq(), (parameters, body, bodyTail) => {
           val function = FunctionExpr(name, parameters, body)
-          success(function, valueEnv.+(name -> function), typeEnv, bodyTail)
+          success(function, env.+(name -> function), bodyTail)
         }, failure)
 
 
       /* Assignments */
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: SymbolToken("=") :~: tail =>
-        verifyType(typeName, typeEnv).right.flatMap(parentType =>
-          parse(tail, valueEnv, typeEnv, (e, _, _, stream) => typeEnv.getChildOf(parentType, e.t) match {
-            case Some(t) => success(DefExpr(name, e), valueEnv + (name -> e), typeEnv, stream)
-            case None => failure(s"'$name' has the expected type $parentType, but was assigned to type ${e.t}")
+        verifyType(typeName, env).right.flatMap(parentType =>
+          parse(tail, env, (e, _, stream) => parentType.isChild(e.t) match {
+            case true => success(DefExpr(name, e), env + (name -> e), stream)
+            case false => failure(s"'$name' has the expected type $parentType, but was assigned to type ${e.t}")
           }, failure)
         )
 
       case SymbolToken(name) :~: SymbolToken("=") :~: tail =>
-        parse(tail, valueEnv, typeEnv, (e, _, _, stream) => success(DefExpr(name, e), valueEnv + (name -> e), typeEnv, stream), failure)
+        parse(tail, env, (e, _, stream) => success(DefExpr(name, e), env + (name -> e), stream), failure)
 
     }
   }
 
-  private def parseLoop(tokens : LiveStream[Token], valueEnv : ValueEnv, typeEnv : TypeEnv, success: SuccessCont, failure: String => Value) : Value = {
+  private def parseLoop(tokens : LiveStream[Token], env : ParserEnv, success: SuccessCont, failure: String => Value) : Value = {
     def parseValueToken(value : Token) : Either[String, Expr] = {
       value match {
-        case SymbolToken(name) => valueEnv.get(name) match {
-          case Some(f : NumberExpr) => Right(f)
-          case Some(x) => Left(Error.TYPE_MISMATCH("numeric reference", x.toString))
+        case SymbolToken(name) => env.get(name) match {
+          case Some(NumberExpr(x)) => Right(NumberExpr(x))
           case None => Left(Error.REFERENCE_NOT_FOUND(name))
         }
         case IntToken(value: Int) => Right(NumberExpr(value))
@@ -209,8 +207,8 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
     def parseLoopWithRange(counterName : String, fromToken : Token, toToken : Token, bodyTokens : LiveStream[Token], success: SuccessCont, failure: String => Value) : Value = {
       parseValueToken(fromToken).right.flatMap(from => {
         parseValueToken(toToken).right.flatMap(to => {
-          parse(bodyTokens, valueEnv + (counterName -> from), typeEnv, (bodyExpr, _, _, bodyTail) => {
-            success(LoopExpr(DefExpr(counterName, from), to, bodyExpr), valueEnv, typeEnv, bodyTail)
+          parse(bodyTokens, env + (counterName -> from), (bodyExpr, _, bodyTail) => {
+            success(LoopExpr(DefExpr(counterName, from), to, bodyExpr), env, bodyTail)
           }, failure)
         })
       })
@@ -233,47 +231,45 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
     }
   }
 
-  private def parseParameters(tokens: LiveStream[Token], valueEnv : ValueEnv, typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont) : Value = {
+  private def parseParameters(tokens: LiveStream[Token], env : ParserEnv, success : SuccessCont, failure : FailureCont) : Value = {
     tokens match {
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail =>
-        verifyType(typeName, typeEnv) match {
+        verifyType(typeName, env) match {
           case Right(t) =>
             val reference = RefExpr(name, t)
-            success(reference, valueEnv.+(name -> reference), typeEnv, tail)
+            success(reference, env.+(name -> reference), tail)
           case Left(error) => Left(error)
         }
       case SymbolToken(name) :~: tail => failure(Error.EXPECTED_TYPE_PARAMETERS(name))
     }
   }
 
-  private def parseUntil(tokens: LiveStream[Token], token : Token, valueEnv : ValueEnv, typeEnv : TypeEnv,
+  private def parseUntil(tokens: LiveStream[Token], token : Token, env : ParserEnv,
                          success : SuccessCont, failure: FailureCont): Value = {
-    parseUntil(parse, tokens, stream => stream.head.toString.equals(token.toString), valueEnv, typeEnv, success, failure)
+    parseUntil(parse, tokens, stream => stream.head.toString.equals(token.toString), env, success, failure)
   }
 
-  private def parseUntil(parseFunction : (LiveStream[Token], ValueEnv, TypeEnv, SuccessCont, FailureCont) => Value,
-                         tokens: LiveStream[Token], condition : LiveStream[Token] => Boolean, valueEnv : ValueEnv,
-                         typeEnv : TypeEnv, success : SuccessCont, failure : FailureCont, spillEnvironment : Boolean = false): Value = {
-    var typeEnvVar : TypeEnv = typeEnv
-    var valueEnvVar : ValueEnv = valueEnv
+  private def parseUntil(parseFunction : (LiveStream[Token], ParserEnv, SuccessCont, FailureCont) => Value,
+                         tokens: LiveStream[Token], condition : LiveStream[Token] => Boolean, env : ParserEnv,
+                         success : SuccessCont, failure : FailureCont, spillEnvironment : Boolean = false): Value = {
+    var envVar : ParserEnv = env
     var seq = Seq[Expr]()
     var seqFail : Option[String] = None
     var seqTail : LiveStream[Token] = tokens
-    def seqSuccess: SuccessCont = (e, v, t, s) => {
+    def seqSuccess: SuccessCont = (e, v, s) => {
       seqTail = s
-      Right((e, v, t))
+      Right((e, v))
     }
     def seqFailure: (String) => Value = (s) => {
       seqFail = Some(s)
       Left(s)
     }
     while (seqFail.isEmpty && !seqTail.isPlugged && !condition(seqTail)) {
-      parseFunction(seqTail, valueEnvVar, typeEnvVar, seqSuccess, seqFailure) match {
+      parseFunction(seqTail, envVar, seqSuccess, seqFailure) match {
          case Left(s) => seqFail = Some(s)
-         case Right((e, newValueEnv, newTypeEnv)) =>
+         case Right((e, newEnv)) =>
            if (e != UnitExpr) seq = seq :+ e
-           valueEnvVar = newValueEnv
-           typeEnvVar = newTypeEnv
+           envVar = newEnv
        }
     }
     if (!seqTail.isPlugged && condition(seqTail) ) {
@@ -281,26 +277,26 @@ class Parser(val httpClient : HttpClient, val defaultValueEnv : ValueEnv, val de
     }
     seqFail.map(seqFailure).getOrElse(
       if (spillEnvironment) {
-        success(BlockExpr(seq), valueEnvVar, typeEnvVar, seqTail)
+        success(BlockExpr(seq), envVar, seqTail)
       } else {
-        success(BlockExpr(seq), valueEnv, typeEnv, seqTail)
+        success(BlockExpr(seq), env, seqTail)
       }
     )
   }
 
-  private def verifyType(typeName : String, typeEnv : TypeEnv) : Either[String, AnyType] = {
-    stringTypeMap.get(typeName) match {
-      case Some(typeObject) if typeEnv.exists(typeObject) => Right(typeObject)
+  private def verifyType(typeName : String, env : ParserEnv) : Either[String, AnyType] = {
+    env.getType(typeName) match {
+      case Some(typeObject) => Right(typeObject)
       case _ => Left(Error.TYPE_NOT_FOUND(typeName))
     }
   }
 
-  private def verifySimilarTypes(functionName : String, expected : Seq[RefExpr], actual : Seq[Expr], typeEnv : TypeEnv) : Option[String] = {
+  private def verifySimilarTypes(functionName : String, expected : Seq[RefExpr], actual : Seq[Expr], env : ParserEnv) : Option[String] = {
     if (actual.size != expected.size) {
       Some(Error.EXPECTED_PARAMETER_NUMBER(functionName, expected.size, actual.size))
     } else {
       expected.zip(actual).collect {
-        case (expectedParam, actualParam) if typeEnv.getChildOf(expectedParam.t, actualParam.t).isEmpty =>
+        case (expectedParam, actualParam) if expectedParam.t.isChild(actualParam.t) =>
           return Some(Error.TYPE_MISMATCH(expectedParam.t.toString, actualParam.t.toString, s"calling $functionName"))
       }
       None

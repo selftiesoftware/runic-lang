@@ -18,7 +18,7 @@ class StringParserTest extends ParsingTest {
     testEqualsAll(Seq(BlockExpr(Seq())), "(")
   }
   it should "reset environments when ending blocks" in {
-    parseStringAll("def a = 10") should equal(Right(BlockExpr(Seq(DefExpr("a", NumberExpr(10)))), emptyValueEnv, emptyTypeEnv))
+    parseStringAll("def a = 10") should equal(Right(BlockExpr(Seq(DefExpr("a", NumberExpr(10)))), ParserEnv()))
   }
 
 }

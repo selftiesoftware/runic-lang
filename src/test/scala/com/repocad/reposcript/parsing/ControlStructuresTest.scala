@@ -2,8 +2,8 @@ package com.repocad.reposcript.parsing
 
 class ControlStructuresTest extends ParsingTest {
 
-  def testCode(code : String, expected : Expr) = parseString(code, Map()) should equal(Right(expected, Map(), defaultTypeEnv))
-  def testCode(code : String, expected : String) = parseString(code, Map()) should equal(Left(expected))
+  def testCode(code : String, expected : Expr) = parseString(code, ParserEnv()) should equal(Right(expected, ParserEnv()))
+  def testCode(code : String, expected : String) = parseString(code, ParserEnv()) should equal(Left(expected))
 
   "Control structure parsing" should "parse an if statement without an else block" in {
     testCode("if (true) 1", IfExpr(BlockExpr(Seq(BooleanExpr(true))), NumberExpr(1), UnitExpr, AnyType))

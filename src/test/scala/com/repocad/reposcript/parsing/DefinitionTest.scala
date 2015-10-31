@@ -13,7 +13,7 @@ class DefinitionTest extends ParsingTest {
     testEquals(DefExpr("a", NumberExpr(10)), "def a as Number = 10")
   }
   it should "store a value in the value environment" in {
-    parseString("def a = 10", Map(), emptyTypeEnv) should equal (Right(DefExpr("a", NumberExpr(10)), Map("a" -> NumberExpr(10)), emptyTypeEnv))
+    parseString("def a = 10", ParserEnv()) should equal (Right(DefExpr("a", NumberExpr(10)), ParserEnv("a", NumberExpr(10))))
   }
   it should "fail when wrong type is specified" in {
     parseString("def a as Unit = 1").isLeft should equal (true)
@@ -44,7 +44,7 @@ class DefinitionTest extends ParsingTest {
   }
   it should "store a function in the value environment" in {
     val function = FunctionExpr("a", Seq(), UnitExpr)
-    parseString("def a() = ", Map(), emptyTypeEnv) should equal (Right(function, Map("a" -> function), emptyTypeEnv))
+    parseString("def a() = ", ParserEnv()) should equal (Right(function, ParserEnv("a", function)))
   }
   it should "accept references to existing parameters in the function body" in {
     val function = FunctionExpr("a", Seq(RefExpr("b", NumberType)), RefExpr("b", NumberType))

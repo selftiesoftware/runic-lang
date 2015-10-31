@@ -7,7 +7,7 @@ import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
 class RemoteCacheTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
 
-  class NoArgParser extends Parser(mockClient, Map(), parsing.emptyTypeEnv)
+  class NoArgParser extends Parser(mockClient, ParserEnv())
 
   val mockClient = mock[HttpClient]
   val mockParser : Parser = mock[NoArgParser]
@@ -26,7 +26,7 @@ class RemoteCacheTest extends FlatSpec with Matchers with MockFactory with Befor
     cache.contains("test") should equal(false)
   }
   it should "cache remote scripts" in {
-    val result : parsing.Value = Right[String, (Expr, ValueEnv, TypeEnv)]((NumberExpr(10), Map(), null))
+    val result : parsing.Value = Right[String, (Expr, ParserEnv)]((NumberExpr(10), ParserEnv()))
 
     (mockClient.getSynchronous _).expects("get/test").returning(Response(0, 4, "10")).once()
     (mockParser.parse(_ : LiveStream[Token], _ : Boolean)).expects(Lexer.lex("10"), true).returning(result).once()
