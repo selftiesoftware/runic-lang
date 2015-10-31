@@ -46,17 +46,10 @@ object Environment {
       (_ : evaluating.Env, double : Double) => double.toInt)
   )
 
-  private val primitiveTypeEnv = Map[String, Expr](
-    "Any" -> AnyType,
-    "Boolean" -> BooleanType,
-    "Number" -> NumberType,
-    "String" -> StringType
-  )
-
   lazy val evaluatorEnv : evaluating.Env = primitiveEnv.map(t => t._1 -> t._2._2)
 
-  // Primitive types plus primitive operations plus printer operations
+  // String types plus primitive operations plus printer operations
   lazy val parserEnv : ParserEnv =
-    ParserEnv.ofMap(primitiveTypeEnv ++ primitiveEnv.map(t => t._1 -> t._2._1)) ++ Printer.toParserEnv
+    ParserEnv.ofMap(stringTypeMap ++ primitiveEnv.map(t => t._1 -> t._2._1)) ++ Printer.toParserEnv
 
 }
