@@ -10,7 +10,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
 
   val remoteCache = new RemoteCache(httpClient)
 
-  private val DEFAULT_LOOP_COUNTER = "_loopCounter"
+  private val DEFAULT_LOOP_COUNTER = "counter"
 
   def parse(tokens : LiveStream[Token]) : Value = {
     parse(tokens, spillEnvironment = false)
