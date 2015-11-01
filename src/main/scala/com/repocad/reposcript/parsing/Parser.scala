@@ -34,7 +34,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
         res match {
           case Left(error) => failure(error)
           case Right((expr, importEnv)) =>
-            success(ImportExpr(script), importEnv, tail)
+            success(ImportExpr(script), env ++ importEnv, tail)
         }
 
       case SymbolToken("if") :~: tail =>

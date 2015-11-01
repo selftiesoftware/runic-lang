@@ -40,7 +40,7 @@ object ParserEnv {
 
   def apply() : ParserEnv  = new ParserEnv(Map())
 
-  def apply(key : String, expr : Expr) : ParserEnv = ofMap(Map[String, Expr](key -> expr))
+  def apply(kvs : (String, Expr)*) : ParserEnv = ofMap(kvs.toMap)
 
   def ofMap(map : Map[String, Expr]) : ParserEnv  = new ParserEnv(map.map(t => t._1 -> Map(t._2.t -> t._2)))
 
