@@ -16,6 +16,9 @@ case class CallExpr(name: String, t : AnyType, params: Seq[Expr]) extends Expr
 case class DefExpr(name: String, value : Expr) extends Expr { val t = value.t }
 case class FunctionExpr(name : String, params : Seq[RefExpr], body : Expr) extends Expr { val t = body.t }
 case class RefExpr(name: String, t : AnyType) extends Expr
+case class ObjectExpr(name : String, params : Seq[RefExpr]) extends Expr {
+  val t = ObjectType(name, AnyType)
+}
 case object UnitExpr extends Expr { val t = UnitType }
 
 trait ControlExpr extends Expr
@@ -69,6 +72,7 @@ case object AnyType extends AnyType {
 
 case object BooleanType extends AnyType { val t = this; val parent = AnyType }
 case object NumberType extends AnyType { val t = this; val parent = AnyType }
+case class ObjectType(name : String, parent : AnyType) extends AnyType { val t = this }
 case object StringType extends AnyType { val t = this; val parent = AnyType }
 case object UnitType extends AnyType { val t = this; val parent = AnyType }
 

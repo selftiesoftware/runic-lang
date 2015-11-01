@@ -55,4 +55,14 @@ class DefinitionTest extends ParsingTest {
     testEquals(function, "def a(b as Number) = def c as Number = b")
   }
 
+  /* Objects */
+  "A object parser" should "create an object and a type" in {
+    parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get._1 should equal(
+      ObjectExpr("object", Seq(RefExpr("a", AnyType))))
+  }
+  it should "store the object in the environment" in {
+    parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get._2 should equal(
+      ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", AnyType))), "Any" -> AnyType))
+  }
+
 }

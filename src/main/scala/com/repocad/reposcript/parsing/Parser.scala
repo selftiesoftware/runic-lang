@@ -74,22 +74,22 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
         }
       }, failure)
 
-      // References to Functions
+      // References to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
         env.get(name) match {
           case Some(function : FunctionExpr) =>
             parseUntil(tail, PunctToken(")"), env, (params : Expr, newEnv : ParserEnv, paramsTail : LiveStream[Token]) => {
               params match {
                 case BlockExpr(xs : Seq[RefExpr]) =>
-                  verifySimilarTypes(name, function.params, xs, newEnv).map(failure)
+                  verifySimilarFunctionTypes(name, function.params, xs, newEnv).map(failure)
                     .getOrElse(success(CallExpr(name, function.body.t, xs), newEnv, paramsTail))
-                case xs => failure("Expected parameters for function call. Got " + xs)
+                case xs => failure("Expected parameter list. Got " + xs)
               }
             }, failure)
           case _ => failure(Error.FUNCTION_NOT_FOUND(name))
         }
 
-      // References to Operations
+      // References to operations
       case (firstToken : Token) :~: SymbolToken(functionName) :~: tail
         if env.get(functionName).filter(_.isInstanceOf[FunctionExpr])
           .exists(_.asInstanceOf[FunctionExpr].params.size == 2) =>
@@ -121,7 +121,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
   private def parseBackwardsReference(firstExpr : Expr, funExpr : FunctionExpr, tokens : LiveStream[Token],
                                       env : ParserEnv, success : SuccessCont, failure : FailureCont) : Value = {
     parse(tokens, env, (secondExpr, _, secondTail) => {
-      verifySimilarTypes(funExpr.name, funExpr.params, Seq(firstExpr, secondExpr), env).map(failure)
+      verifySimilarFunctionTypes(funExpr.name, funExpr.params, Seq(firstExpr, secondExpr), env).map(failure)
         .getOrElse(success(CallExpr(funExpr.name, funExpr.t, Seq(firstExpr, secondExpr)), env, secondTail))
     }, failure)
   }
@@ -152,7 +152,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     }
 
     tokens match {
-      /* Functions */
+      /* Functions or objects */
       case PunctToken("(") :~: tail => parseFunctionParameters(tail, (firstParams, firstTail) => {
         firstTail match {
           case SymbolToken(name) :~: PunctToken("(") :~: functionTail =>
@@ -166,14 +166,22 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
               val function = FunctionExpr(name, firstParams, body)
               success(function, env.+(name -> function), bodyTail)
             }, failure)
-
         }
       }, failure)
 
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        parseFunctionParametersAndBody(tail, Seq(), (parameters, body, bodyTail) => {
-          val function = FunctionExpr(name, parameters, body)
-          success(function, env.+(name -> function), bodyTail)
+        parseFunctionParameters(tail, (parameters, paramsTail) => {
+          paramsTail match {
+            case SymbolToken("=") :~: bodyTokens =>
+              parseFunctionBody(bodyTokens, parameters, (body, _, bodyTail) => {
+                val function = FunctionExpr(name, parameters, body)
+                success(function, env.+(name -> function), bodyTail)
+              }, failure)
+
+            case objectTail =>
+              val objectExpr = ObjectExpr(name, parameters)
+              success(objectExpr, env + (name -> objectExpr), objectTail)
+          }
         }, failure)
 
 
@@ -291,7 +299,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     }
   }
 
-  private def verifySimilarTypes(functionName : String, expected : Seq[RefExpr], actual : Seq[Expr], env : ParserEnv) : Option[String] = {
+  private def verifySimilarFunctionTypes(functionName : String, expected : Seq[RefExpr], actual : Seq[Expr], env : ParserEnv) : Option[String] = {
     if (actual.size != expected.size) {
       Some(Error.EXPECTED_PARAMETER_NUMBER(functionName, expected.size, actual.size))
     } else {
