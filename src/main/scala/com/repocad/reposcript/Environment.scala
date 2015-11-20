@@ -31,7 +31,7 @@ object Environment {
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.lessThan(b, a)),
     ">=" -> (FunctionExpr(">=", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), BooleanTypeExpr),
       (env : evaluating.Env, a : Any, b : Any) => RepoMath.lessThanEquals(b, a)),
-  // Trigonometry
+  // Trigonometry1
     "cos" -> (FunctionExpr("cos", Seq(RefExpr("degrees", NumberType)), NumberTypeExpr),
       (_ : evaluating.Env, degrees : Double) => math.cos(degrees)),
     "degrees" -> (FunctionExpr("degrees", Seq(RefExpr("degrees", NumberType)), NumberTypeExpr),

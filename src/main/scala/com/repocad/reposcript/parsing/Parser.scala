@@ -74,22 +74,25 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
         }
       }, failure)
 
-      // References to functions or objects
+      // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        env.get(name) match {
-          case Some(function : FunctionExpr) =>
-            parseUntil(tail, PunctToken(")"), env, (params : Expr, newEnv : ParserEnv, paramsTail : LiveStream[Token]) => {
-              params match {
-                case BlockExpr(xs : Seq[RefExpr]) =>
-                  verifySimilarFunctionTypes(name, function.params, xs, newEnv).map(failure)
-                    .getOrElse(success(CallExpr(name, function.body.t, xs), newEnv, paramsTail))
+        if (env.contains(name)) {
+            parseUntil(tail, PunctToken(")"), env, (paramExpr : Expr, newEnv : ParserEnv, paramsTail : LiveStream[Token]) => {
+              paramExpr match {
+                case BlockExpr(params : Seq[Expr]) =>
+                  val exprOption : Option[CallExpr] = env.getAll(name).flatMap(_.collectFirst({
+                    case o : ObjectExpr if verifySameParams(o.params, params) => CallExpr(name, o.t, params)
+                    case f : FunctionExpr if verifySameParams(f.params, params) => CallExpr(name, f.t, params)
+                  }))
+                  exprOption.map(expr => success(expr, env, paramsTail)).getOrElse(failure(s"No function or object with name $name fits parameter-list $params"))
                 case xs => failure("Expected parameter list. Got " + xs)
               }
             }, failure)
-          case _ => failure(Error.FUNCTION_NOT_FOUND(name))
+        } else {
+          failure(Error.FUNCTION_NOT_FOUND(name))
         }
 
-      // References to operations
+      // Calls to operations
       case (firstToken : Token) :~: SymbolToken(functionName) :~: tail
         if env.get(functionName).filter(_.isInstanceOf[FunctionExpr])
           .exists(_.asInstanceOf[FunctionExpr].params.size == 2) =>
@@ -178,8 +181,11 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                 success(function, env.+(name -> function), bodyTail)
               }, failure)
 
+              // Extend objects
+            //case SymbolToken("as")
+
             case objectTail =>
-              val objectExpr = ObjectExpr(name, parameters)
+              val objectExpr = ObjectExpr(name, parameters, AnyType)
               success(objectExpr, env + (name -> objectExpr), objectTail)
           }
         }, failure)
@@ -292,11 +298,8 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     )
   }
 
-  private def verifyType(typeName : String, env : ParserEnv) : Either[String, AnyType] = {
-    env.getType(typeName) match {
-      case Some(typeObject) => Right(typeObject)
-      case _ => Left(Error.TYPE_NOT_FOUND(typeName))
-    }
+  private def verifySameParams(parameters : Seq[RefExpr], callParameters : Seq[Expr]) : Boolean = {
+    parameters.size == callParameters.size && !(for (p1 <- parameters; p2 <- callParameters) yield p1.t == p2.t).exists(b => !b)
   }
 
   private def verifySimilarFunctionTypes(functionName : String, expected : Seq[RefExpr], actual : Seq[Expr], env : ParserEnv) : Option[String] = {
@@ -308,6 +311,13 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
           return Some(Error.TYPE_MISMATCH(expectedParam.t.toString, actualParam.t.toString, s"calling '$functionName'"))
       }
       None
+    }
+  }
+
+  private def verifyType(typeName : String, env : ParserEnv) : Either[String, AnyType] = {
+    env.getType(typeName) match {
+      case Some(typeObject) => Right(typeObject)
+      case _ => Left(Error.TYPE_NOT_FOUND(typeName))
     }
   }
 

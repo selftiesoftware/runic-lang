@@ -58,11 +58,21 @@ class DefinitionTest extends ParsingTest {
   /* Objects */
   "A object parser" should "create an object and a type" in {
     parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get._1 should equal(
-      ObjectExpr("object", Seq(RefExpr("a", AnyType))))
+      ObjectExpr("object", Seq(RefExpr("a", AnyType)), AnyType))
   }
   it should "store the object in the environment" in {
     parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get._2 should equal(
-      ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", AnyType))), "Any" -> AnyType))
+      ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", AnyType)), AnyType), "Any" -> AnyType))
+  }
+  it should "call a previously defined object" in {
+    parseString("object(12)", ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", NumberType)), AnyType))).right.get._1 should equal(
+      CallExpr("object", ObjectType("object", AnyType), Seq(NumberExpr(12))))
+  }
+  it should "fail when calling an object with the wrong parameter type" in {
+    parseString("object(\"string\")", ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
+  }
+  it should "fail when calling an object with the wrong parameter list length" in {
+    parseString("object(12, \"string\")", ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
   }
 
 }

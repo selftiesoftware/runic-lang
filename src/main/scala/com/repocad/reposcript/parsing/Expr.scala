@@ -15,10 +15,10 @@ case class BlockExpr(expr: Seq[Expr]) extends Expr { val t = if (expr.isEmpty) U
 case class CallExpr(name: String, t : AnyType, params: Seq[Expr]) extends Expr
 case class DefExpr(name: String, value : Expr) extends Expr { val t = value.t }
 case class FunctionExpr(name : String, params : Seq[RefExpr], body : Expr) extends Expr { val t = body.t }
-case class RefExpr(name: String, t : AnyType) extends Expr
-case class ObjectExpr(name : String, params : Seq[RefExpr]) extends Expr {
-  val t = ObjectType(name, AnyType)
+case class ObjectExpr(name : String, params : Seq[RefExpr], parent : AnyType) extends Expr {
+  val t = ObjectType(name, parent)
 }
+case class RefExpr(name: String, t : AnyType) extends Expr
 case object UnitExpr extends Expr { val t = UnitType }
 
 trait ControlExpr extends Expr

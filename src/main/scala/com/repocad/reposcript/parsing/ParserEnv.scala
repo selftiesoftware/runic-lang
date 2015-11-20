@@ -22,11 +22,13 @@ case class ParserEnv(private val innerEnv : Map[String, Map[AnyType, Expr]]) {
     kvs.toMap.foldLeft(this)((thisEnv, thatEnv) => thisEnv ++ (thatEnv._1, thatEnv._2))
   }
 
+  def contains(name: String) = innerEnv.get(name).exists(_.nonEmpty)
+
   def get(key : String) : Option[Expr] = innerEnv.get(key).flatMap(_.headOption.map(_._2))
 
-  def getAll(key : String) : Option[Map[AnyType, Expr]] = innerEnv.get(key)
+  def getAll(key : String) : Option[Iterable[Expr]] = innerEnv.get(key).map(_.values)
 
-  def getAsType(key : String, t : AnyType) : Option[Expr] = innerEnv.get(key).flatMap(_.find(_._1 == t).map(_._2))
+  def getAsType(key : String, t : AnyType) : Option[Expr] = innerEnv.get(key).flatMap(_.get(t))
 
   def getType(key : String) : Option[AnyType] = innerEnv.get(key)
     .flatMap(map => map.find(overloaded => overloaded._2.isInstanceOf[AnyType])).map(_._2.asInstanceOf[AnyType])
