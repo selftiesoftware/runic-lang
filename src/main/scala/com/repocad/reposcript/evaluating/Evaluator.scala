@@ -65,10 +65,22 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
           case Right((newEnvironment, value)) => Left("Expected boolean, got " + value)
         }
 
-      //case objectExpr : ObjectExpr => Right(env.+(objectExpr.name -> objectExpr), objectExpr)
-
       case CallExpr(name, t, params) =>
-        env.get(name).fold[Value](Left(s"Failed to find function '$name'. Please check if it has been declared.")) {
+        env.get(name).fold[Value](Left(s"Failed to find a function or objects called '$name'. Please check if it has been declared.")) {
+          case objectParams : Seq[String] =>
+            if (params.size != objectParams.size) {
+              Left(Error.OBJECT_PARAM_SIZE_NOT_EQUAL(name, objectParams.size, params.size))
+            } else {
+              val actualParams : Seq[Value] = params.map(eval(_, env))
+              val (lefts, rights) = actualParams.partition((either : Value) => either.isLeft)
+              if (lefts.nonEmpty) {
+                Left(Error.OBJECT_PARAM_EVAL_ERROR(name, lefts))
+              } else {
+                val map = objectParams.zip(rights.map(_.right.get._2)).toMap
+                Right(env, map)
+              }
+            }
+
           case f: ((Env) => Any)=> Right(env -> f(env))
           case f: ((Env, Any) => Any) =>
             eval(params.head, env).right.flatMap(a => Right(a._1 -> f.apply(env, a._2)))
@@ -156,22 +168,14 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
                 )
               )
             )
-          /*case ObjectExpr(objectName, objectParams) =>
-            if (params.size != objectParams.size) {
-              Left(Error.OBJECT_PARAM_SIZE_NOT_EQUAL(name, objectParams.size, params.size))
-            } else {
-              val actualParams : Seq[Value] = params.map(eval(_, env))
-              val (lefts, rights) = actualParams.partition((either : Value) => either.isLeft)
-              if (lefts.nonEmpty) {
-                Left(Error.OBJECT_PARAM_EVAL_ERROR(name, lefts))
-              } else {
-                val map = objectParams.zip(rights)
-                Right(env.+(name -> map), map)
-              }
-            }*/
 
-          case x => Left("Expected callable function, got " + x)
+          case x => Left("Expected callable function or object, got " + x)
         }
+
+      case ObjectType(name, params, _) => {
+        val paramNames = params.map(_.name)
+        Right(env.+(name -> paramNames), paramNames)
+      }
 
       case RefExpr(name, t) =>
         env.get(name).fold[Value](

@@ -29,9 +29,19 @@ class ExprTest extends FlatSpec with MockFactory with Matchers {
     output._1.get("f") should equal(Some(output._2))
     output._2.asInstanceOf[Function2[Env, Int, Int]](emptyEnv, 2) should equal (2)
   }
-  it should "evaluate a reference expression" in {
-    val valEnv = Map("a" -> 1)
-    evaluator.eval(RefExpr("a", NumberType), valEnv) should equal(Right(valEnv, 1))
+
+  "An object evaluator" should "evaluate an object expression" in {
+    evaluator.eval(ObjectType("object", Seq(), AnyType), emptyEnv) should equal(Right(Map("object" -> Seq()), Seq()))
+  }
+  it should "construct an object" in {
+    val t = ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType)
+    val paramNames = t.params.map(_.name)
+    evaluator.eval(CallExpr("object", t, Seq(NumberExpr(12))), Map("object" -> paramNames)) should equal(Right(Map("object" -> paramNames), Map("a" -> 12)))
+  }
+  it should "access an element in an object" in {
+    val t = ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType)
+    val paramNames = t.params.map(_.name)
+    evaluator.eval(CallExpr("object", t, Seq(NumberExpr(12))), Map("object" -> paramNames)) should equal(Right(Map("object" -> paramNames), Map("a" -> 12)))
   }
 
   "A value evaluator" should "evaluate a boolean expression" in {
