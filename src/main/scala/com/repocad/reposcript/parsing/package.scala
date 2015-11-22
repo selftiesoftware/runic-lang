@@ -21,13 +21,18 @@ package object parsing {
   )
 
   object Error {
+
+    def EXPECTED_OBJECT_ACCESS(name: String, rawString: String): String = s"Expected access to object field by a single (.), but received $rawString"
     def EXPECTED_PARAMETERS(actual : String) : String = s"Expected parameter list when creating a function or object, but received '$actual'"
     def EXPECTED_PARAMETER_NUMBER(functionName : String, expected : Int, actual : Int) : String = s"Function '$functionName' requires $expected parameters, but $actual was given"
     def EXPECTED_TYPE_PARAMETERS(name : String) : String = s"No type information for variable $name; please specify its type using '$name as [Type]'"
 
-    def OBJECT_MISSING_PARAMETERS(name : String) = s"Object '$name' must have at least one parameter"
-
     def FUNCTION_NOT_FOUND(functionName: String): String = s"Function '$functionName' not found"
+
+    def OBJECT_INSTANCE_NOT_FOUND(callName: String): String = s"Could not find object instance by the name of $callName"
+    def OBJECT_MISSING_PARAMETERS(name : String) = s"Object '$name' must have at least one parameter"
+    def OBJECT_NOT_FOUND(name: String): String = s"Could not find object of name '$name'"
+    def OBJECT_UNKNOWN_PARAMETER_NAME(objectName : String, accessor: String): String = s"No field in object $objectName by the name of $accessor"
 
     def REFERENCE_NOT_FOUND(reference : String) = s"Could not find object '$reference'. Has it been defined?"
 

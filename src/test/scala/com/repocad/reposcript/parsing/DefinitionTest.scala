@@ -58,21 +58,35 @@ class DefinitionTest extends ParsingTest {
   /* Objects */
   "A object parser" should "create an object and a type" in {
     parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get._1 should equal(
-      ObjectExpr("object", Seq(RefExpr("a", AnyType)), AnyType))
+      ObjectType("object", Seq(RefExpr("a", AnyType)), AnyType))
   }
   it should "store the object in the environment" in {
     parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get._2 should equal(
-      ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", AnyType)), AnyType), "Any" -> AnyType))
+      ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", AnyType)), AnyType), "Any" -> AnyType))
   }
   it should "call a previously defined object" in {
-    parseString("object(12)", ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", NumberType)), AnyType))).right.get._1 should equal(
-      CallExpr("object", ObjectType("object", AnyType), Seq(NumberExpr(12))))
+    val t = ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType)
+    parseString("object(12)", ParserEnv("object" -> t)).right.get._1 should equal(
+      CallExpr("object", t, Seq(NumberExpr(12))))
   }
   it should "fail when calling an object with the wrong parameter type" in {
-    parseString("object(\"string\")", ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
+    parseString("object(\"string\")", ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
   }
   it should "fail when calling an object with the wrong parameter list length" in {
-    parseString("object(12, \"string\")", ParserEnv("object" -> ObjectExpr("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
+    parseString("object(12, \"string\")", ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
+  }
+  it should "access a field in an object" in {
+    val value = "hello"
+    val t = ObjectType("object", Seq(RefExpr("name", StringType)), AnyType)
+    parseString("instance.name", ParserEnv("object" -> t, "instance" -> CallExpr("object", t, Seq(StringExpr(value))))).right.get._1 should equal(
+      StringExpr(value)
+    )
+  }
+  it should "fail to access a field that does not exist in an object" in {
+    val value = "hello"
+    val t = ObjectType("object", Seq(RefExpr("name", StringType)), AnyType)
+    parseString("instance.noField", ParserEnv("object" -> t, "instance" -> CallExpr("object", t, Seq(StringExpr(value))))).left.get should equal(
+      Error.OBJECT_UNKNOWN_PARAMETER_NAME("object", "noField"))
   }
 
 }

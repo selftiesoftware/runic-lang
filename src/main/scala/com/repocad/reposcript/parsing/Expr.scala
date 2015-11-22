@@ -15,9 +15,6 @@ case class BlockExpr(expr: Seq[Expr]) extends Expr { val t = if (expr.isEmpty) U
 case class CallExpr(name: String, t : AnyType, params: Seq[Expr]) extends Expr
 case class DefExpr(name: String, value : Expr) extends Expr { val t = value.t }
 case class FunctionExpr(name : String, params : Seq[RefExpr], body : Expr) extends Expr { val t = body.t }
-case class ObjectExpr(name : String, params : Seq[RefExpr], parent : AnyType) extends Expr {
-  val t = ObjectType(name, parent)
-}
 case class RefExpr(name: String, t : AnyType) extends Expr
 case object UnitExpr extends Expr { val t = UnitType }
 
@@ -72,7 +69,9 @@ case object AnyType extends AnyType {
 
 case object BooleanType extends AnyType { val t = this; val parent = AnyType }
 case object NumberType extends AnyType { val t = this; val parent = AnyType }
-case class ObjectType(name : String, parent : AnyType) extends AnyType { val t = this }
+case class ObjectType(name : String, params : Seq[RefExpr], parent : AnyType) extends AnyType {
+  val t = this
+}
 case object StringType extends AnyType { val t = this; val parent = AnyType }
 case object UnitType extends AnyType { val t = this; val parent = AnyType }
 

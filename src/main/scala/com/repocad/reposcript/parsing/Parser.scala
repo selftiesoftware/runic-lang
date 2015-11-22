@@ -81,7 +81,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
               paramExpr match {
                 case BlockExpr(params : Seq[Expr]) =>
                   val exprOption : Option[CallExpr] = env.getAll(name).flatMap(_.collectFirst({
-                    case o : ObjectExpr if verifySameParams(o.params, params) => CallExpr(name, o.t, params)
+                    case o : ObjectType if verifySameParams(o.params, params) => CallExpr(name, o.t, params)
                     case f : FunctionExpr if verifySameParams(f.params, params) => CallExpr(name, f.t, params)
                   }))
                   exprOption.map(expr => success(expr, env, paramsTail)).getOrElse(failure(s"No function or object with name $name fits parameter-list $params"))
@@ -108,6 +108,19 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       case DoubleToken(value : Double) :~: tail => success(NumberExpr(value), env, tail)
       case IntToken(value: Int) :~: tail => success(NumberExpr(value), env, tail)
       case StringToken(value : String) :~: tail => success(StringExpr(value), env, tail)
+
+      // References
+      case SymbolToken(callName) :~: PunctToken(".") :~: SymbolToken(accessor) :~: tail =>
+        env.getAsType(callName, t => t.isInstanceOf[ObjectType]) match {
+          case Some(CallExpr(_, ObjectType(objectName, objectParams, _), callParams)) =>
+            val index = objectParams.indexWhere(_.name == accessor)
+            if (index < 0) {
+              failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(objectName, accessor))
+            } else {
+              success(callParams(index), env, tail)
+            }
+          case _ => failure(Error.OBJECT_INSTANCE_NOT_FOUND(callName))
+        }
 
       case SymbolToken(name) :~: tail =>
         env.get(name) match {
@@ -185,7 +198,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
             //case SymbolToken("as")
 
             case objectTail =>
-              val objectExpr = ObjectExpr(name, parameters, AnyType)
+              val objectExpr = ObjectType(name, parameters, AnyType)
               success(objectExpr, env + (name -> objectExpr), objectTail)
           }
         }, failure)

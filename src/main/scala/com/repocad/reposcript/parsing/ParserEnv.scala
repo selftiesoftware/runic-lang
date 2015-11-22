@@ -29,6 +29,7 @@ case class ParserEnv(private val innerEnv : Map[String, Map[AnyType, Expr]]) {
   def getAll(key : String) : Option[Iterable[Expr]] = innerEnv.get(key).map(_.values)
 
   def getAsType(key : String, t : AnyType) : Option[Expr] = innerEnv.get(key).flatMap(_.get(t))
+  def getAsType(key : String, f : AnyType => Boolean): Option[Expr] = innerEnv.get(key).flatMap(_.find(t => f(t._1)).map(_._2))
 
   def getType(key : String) : Option[AnyType] = innerEnv.get(key)
     .flatMap(map => map.find(overloaded => overloaded._2.isInstanceOf[AnyType])).map(_._2.asInstanceOf[AnyType])
