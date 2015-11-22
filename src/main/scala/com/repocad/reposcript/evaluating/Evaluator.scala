@@ -182,6 +182,14 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
           Left(s"Failed to find function '$name'. Please check if it has been declared.")
         )(x => Right(env -> x))
 
+      case RefFieldExpr(name, field, t) =>
+        env.get(name).fold[Value](
+          Left(s"Could not find object of name $name")
+        )(_.asInstanceOf[Map[String, Any]].get(field).fold[Value](
+          Left(s"Cannot find field $field in object $name")
+          )(value => Right(env -> value))
+        )
+
       case seq: BlockExpr =>
         if (seq.expr.isEmpty) {
           Right(env, Unit)

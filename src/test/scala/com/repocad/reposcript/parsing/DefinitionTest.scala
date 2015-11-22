@@ -75,11 +75,11 @@ class DefinitionTest extends ParsingTest {
   it should "fail when calling an object with the wrong parameter list length" in {
     parseString("object(12, \"string\")", ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
   }
-  it should "access a field in an object" in {
+  it should "reference a field in an object" in {
     val value = "hello"
     val t = ObjectType("object", Seq(RefExpr("name", StringType)), AnyType)
     parseString("instance.name", ParserEnv("object" -> t, "instance" -> CallExpr("object", t, Seq(StringExpr(value))))).right.get._1 should equal(
-      StringExpr(value)
+      RefFieldExpr("instance", "name", StringType)
     )
   }
   it should "fail to access a field that does not exist in an object" in {

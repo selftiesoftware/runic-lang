@@ -113,12 +113,9 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       case SymbolToken(callName) :~: PunctToken(".") :~: SymbolToken(accessor) :~: tail =>
         env.getAsType(callName, t => t.isInstanceOf[ObjectType]) match {
           case Some(CallExpr(_, ObjectType(objectName, objectParams, _), callParams)) =>
-            val index = objectParams.indexWhere(_.name == accessor)
-            if (index < 0) {
-              failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(objectName, accessor))
-            } else {
-              success(callParams(index), env, tail)
-            }
+            objectParams.find(_.name == accessor).map(
+              param => success(RefFieldExpr(callName, param.name, param.t), env, tail)
+            ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(objectName, accessor)))
           case _ => failure(Error.OBJECT_INSTANCE_NOT_FOUND(callName))
         }
 

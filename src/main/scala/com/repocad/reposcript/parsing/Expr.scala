@@ -16,6 +16,7 @@ case class CallExpr(name: String, t : AnyType, params: Seq[Expr]) extends Expr
 case class DefExpr(name: String, value : Expr) extends Expr { val t = value.t }
 case class FunctionExpr(name : String, params : Seq[RefExpr], body : Expr) extends Expr { val t = body.t }
 case class RefExpr(name: String, t : AnyType) extends Expr
+case class RefFieldExpr(objectName : String, field : String, t : AnyType) extends Expr
 case object UnitExpr extends Expr { val t = UnitType }
 
 trait ControlExpr extends Expr
