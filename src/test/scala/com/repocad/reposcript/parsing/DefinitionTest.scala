@@ -18,7 +18,6 @@ class DefinitionTest extends ParsingTest {
   it should "fail when wrong type is specified" in {
     parseString("def a as Unit = 1").isLeft should equal (true)
   }
-  it should ""
 
   /* Functions */
   "A parser for functions" should "parse a function without parameters and body" in {
@@ -87,6 +86,10 @@ class DefinitionTest extends ParsingTest {
     val t = ObjectType("object", Seq(RefExpr("name", StringType)), AnyType)
     parseString("instance.noField", ParserEnv("object" -> t, "instance" -> CallExpr("object", t, Seq(StringExpr(value))))).left.get should equal(
       Error.OBJECT_UNKNOWN_PARAMETER_NAME("object", "noField"))
+  }
+  it should "reference another object" in {
+    val o1 = ObjectType("o1", Seq(), AnyType)
+    parseString("def o2(o as o1)", ParserEnv("o1" -> o1)).right.get._1 should equal(ObjectType("o2", Seq(RefExpr("o", o1.t)), AnyType))
   }
 
 }

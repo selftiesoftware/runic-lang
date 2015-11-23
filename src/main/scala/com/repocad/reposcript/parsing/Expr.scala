@@ -14,7 +14,9 @@ trait Expr {
 case class BlockExpr(expr: Seq[Expr]) extends Expr { val t = if (expr.isEmpty) UnitType else expr.last.t }
 case class CallExpr(name: String, t : AnyType, params: Seq[Expr]) extends Expr
 case class DefExpr(name: String, value : Expr) extends Expr { val t = value.t }
-case class FunctionExpr(name : String, params : Seq[RefExpr], body : Expr) extends Expr { val t = body.t }
+case class FunctionExpr(name : String, params : Seq[RefExpr], body : Expr) extends Expr {
+  val t = FunctionType(body.t)
+}
 case class RefExpr(name: String, t : AnyType) extends Expr
 case class RefFieldExpr(objectName : String, field : String, t : AnyType) extends Expr
 case object UnitExpr extends Expr { val t = UnitType }
@@ -52,7 +54,7 @@ trait AnyType extends Expr {
   }
 
   def isChild(that : AnyType) : Boolean = {
-    if (this == AnyType || that.equals(this)) {
+    if (this == AnyType || that == this) {
       true
     } else if (that == AnyType) {
       false
@@ -76,15 +78,7 @@ case class ObjectType(name : String, params : Seq[RefExpr], parent : AnyType) ex
 case object StringType extends AnyType { val t = this; val parent = AnyType }
 case object UnitType extends AnyType { val t = this; val parent = AnyType }
 
-trait FunctionType extends AnyType {
-  val returnType : AnyType
+case class FunctionType(returnType : AnyType) extends AnyType {
   val parent = AnyType
+  val t = this
 }
-
-case class Function0Type(returnType : AnyType) extends FunctionType { val t = this; }
-case class Function1Type(first : AnyType, returnType : AnyType) extends FunctionType { val t = this }
-case class Function2Type(first : AnyType, second : AnyType, returnType : AnyType) extends FunctionType { val t = this }
-case class Function3Type(first : AnyType, second : AnyType, third : AnyType, returnType : AnyType)
-  extends FunctionType { val t = this }
-case class Function4Type(first : AnyType, second : AnyType, third : AnyType, fourth : AnyType, returnType : AnyType)
-  extends FunctionType { val t = this }

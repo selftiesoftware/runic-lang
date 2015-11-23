@@ -16,10 +16,10 @@ class ControlStructuresTest extends ParsingTest {
   }
   it should "parse a loop statement with an unnamed loop variable" in {
     testCode("repeat 5",
-      LoopExpr(DefExpr("_loopCounter", NumberExpr(1)), NumberExpr(5), UnitExpr))
+      LoopExpr(DefExpr("counter", NumberExpr(1)), NumberExpr(5), UnitExpr))
   }
   it should "parse a loop statement with an unnamed loop variable and a fixed range" in {
-    testCode("repeat 1 to 5", LoopExpr(DefExpr("_loopCounter", NumberExpr(1)), NumberExpr(5), UnitExpr))
+    testCode("repeat 1 to 5", LoopExpr(DefExpr("counter", NumberExpr(1)), NumberExpr(5), UnitExpr))
   }
   it should "parse a loop statement with named loop variable" in {
     testCode("repeat 5 using counter",

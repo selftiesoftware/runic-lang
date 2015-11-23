@@ -82,9 +82,10 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                 case BlockExpr(params : Seq[Expr]) =>
                   val exprOption : Option[CallExpr] = env.getAll(name).flatMap(_.collectFirst({
                     case o : ObjectType if verifySameParams(o.params, params) => CallExpr(name, o.t, params)
-                    case f : FunctionExpr if verifySameParams(f.params, params) => CallExpr(name, f.t, params)
+                    case f : FunctionExpr if verifySameParams(f.params, params) => CallExpr(name, f.t.returnType, params)
                   }))
-                  exprOption.map(expr => success(expr, env, paramsTail)).getOrElse(failure(s"No function or object with name $name fits parameter-list $params"))
+                  exprOption.map(expr => success(expr, env, paramsTail))
+                    .getOrElse(failure(s"No function or object with name $name fits parameter-list $params"))
                 case xs => failure("Expected parameter list. Got " + xs)
               }
             }, failure)
@@ -135,7 +136,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                                       env : ParserEnv, success : SuccessCont, failure : FailureCont) : Value = {
     parse(tokens, env, (secondExpr, _, secondTail) => {
       verifySimilarFunctionTypes(funExpr.name, funExpr.params, Seq(firstExpr, secondExpr), env).map(failure)
-        .getOrElse(success(CallExpr(funExpr.name, funExpr.t, Seq(firstExpr, secondExpr)), env, secondTail))
+        .getOrElse(success(CallExpr(funExpr.name, funExpr.t.returnType, Seq(firstExpr, secondExpr)), env, secondTail))
     }, failure)
   }
 
@@ -170,7 +171,8 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
         firstTail match {
           case SymbolToken(name) :~: PunctToken("(") :~: functionTail =>
             parseFunctionParametersAndBody(functionTail, firstParams, (secondParams, body, bodyTail) => {
-              val function = FunctionExpr(name, firstParams ++ secondParams, body)
+              val parameters = firstParams ++ secondParams
+              val function = FunctionExpr(name, parameters, body)
               success(function, env.+(name -> function), bodyTail)
             }, failure)
 
@@ -309,7 +311,16 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
   }
 
   private def verifySameParams(parameters : Seq[RefExpr], callParameters : Seq[Expr]) : Boolean = {
-    parameters.size == callParameters.size && !(for (p1 <- parameters; p2 <- callParameters) yield p1.t == p2.t).exists(b => !b)
+    if (parameters.size != callParameters.size) {
+      return false
+    }
+
+    for (i <- parameters.indices) {
+      if(!parameters(i).t.isChild(callParameters(i).t)) {
+        return false
+      }
+    }
+    true
   }
 
   private def verifySimilarFunctionTypes(functionName : String, expected : Seq[RefExpr], actual : Seq[Expr], env : ParserEnv) : Option[String] = {
