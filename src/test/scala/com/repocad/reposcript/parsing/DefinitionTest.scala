@@ -49,9 +49,19 @@ class DefinitionTest extends ParsingTest {
     val function = FunctionExpr("a", Seq(RefExpr("b", NumberType)), RefExpr("b", NumberType))
     testEquals(function, "def a(b as Number) = b")
   }
-  it should "refer to an Number parameter as an Number in an assignment" in {
+  it should "refer to a Number parameter as a Number in an assignment" in {
     val function = FunctionExpr("a", Seq(RefExpr("b", NumberType)), DefExpr("c", RefExpr("b", NumberType)))
     testEquals(function, "def a(b as Number) = def c as Number = b")
+  }
+  it should "refer to an object parameter" in {
+    val obj = ObjectType("o", Seq(), AnyType)
+    val function = FunctionExpr("a", Seq(RefExpr("x", obj)), RefExpr("x", obj))
+    testEquals(function, "def a(x as o) = x", ParserEnv("o" -> obj))
+  }
+  it should "refer to an object element in a function" in {
+    val obj = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
+    val function = FunctionExpr("a", Seq(RefExpr("x", obj)), RefFieldExpr("x", "a", NumberType))
+    testEquals(function, "def a(x as o) = x.a", ParserEnv("o" -> obj))
   }
 
   /* Objects */
