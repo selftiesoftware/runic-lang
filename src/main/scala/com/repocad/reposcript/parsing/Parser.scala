@@ -113,7 +113,11 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       // References
       case SymbolToken(callName) :~: PunctToken(".") :~: SymbolToken(accessor) :~: tail =>
         env.getAsType(callName, t => t.isInstanceOf[ObjectType]) match {
-          case Some(RefExpr(_, ObjectType(objectName, objectParams, _))) =>
+          case Some(RefExpr(_, ObjectType(objectName, objectParams, _))) => // RefExpr in function parameter lists
+            objectParams.find(_.name == accessor).map(
+              param => success(RefFieldExpr(callName, param.name, param.t), env, tail)
+            ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(objectName, accessor)))
+          case Some(CallExpr(_, ObjectType(objectName, objectParams, _), _)) => // CallExpr in object instantiations
             objectParams.find(_.name == accessor).map(
               param => success(RefFieldExpr(callName, param.name, param.t), env, tail)
             ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(objectName, accessor)))

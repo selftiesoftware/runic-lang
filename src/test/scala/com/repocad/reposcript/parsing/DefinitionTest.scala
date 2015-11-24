@@ -84,6 +84,13 @@ class DefinitionTest extends ParsingTest {
   it should "fail when calling an object with the wrong parameter list length" in {
     parseString("object(12, \"string\")", ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
   }
+  it should "refer to an object" in {
+    val obj = ObjectType("o", Seq(RefExpr("x", NumberType)), AnyType)
+    val instance = CallExpr("o", obj, Seq(NumberExpr(10)))
+    val expr = parseStringAll("def o(x as Number) \n def i = o(10) \n i.x", ParserEnv("Number" -> NumberType))
+    expr.right.get._1 should equal(
+      BlockExpr(Seq(obj, DefExpr("i", instance), RefFieldExpr("i", "x", NumberType))))
+  }
   it should "reference a field in an object" in {
     val value = "hello"
     val t = ObjectType("object", Seq(RefExpr("name", StringType)), AnyType)
