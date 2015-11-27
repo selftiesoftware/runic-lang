@@ -225,42 +225,31 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
   }
 
   private def parseLoop(tokens : LiveStream[Token], env : ParserEnv, success: SuccessCont, failure: String => Value) : Value = {
-    def parseValueToken(value : Token) : Either[String, Expr] = {
-      value match {
-        case SymbolToken(name) => env.get(name) match {
-          case Some(NumberExpr(x)) => Right(NumberExpr(x))
-          case None => Left(Error.REFERENCE_NOT_FOUND(name))
-        }
-        case IntToken(value: Int) => Right(NumberExpr(value))
-        case DoubleToken(value : Double) => Right(NumberExpr(value))
-        case e => Left(Error.SYNTAX_ERROR("a numeric value or reference to a numeric value", e.toString))
+    def parseLoopWithRange(counterName : String, from : Expr, to : Expr, bodyTokens : LiveStream[Token], success: SuccessCont, failure: String => Value) : Value = {
+      if (!NumberType.isChild(from.t)) {
+        failure(Error.TYPE_MISMATCH("number", from.t.toString, "defining the number to start from in a loop"))
+      } else if (!NumberType.isChild(to.t)) {
+        failure(Error.TYPE_MISMATCH("number", to.t.toString, "defining when to end a loop"))
+      } else {
+        parse(bodyTokens, env + (counterName -> from), (bodyExpr, _, bodyTail) => {
+          success(LoopExpr(DefExpr(counterName, from), to, bodyExpr), env, bodyTail)
+        }, failure)
       }
     }
-    def parseLoopWithRange(counterName : String, fromToken : Token, toToken : Token, bodyTokens : LiveStream[Token], success: SuccessCont, failure: String => Value) : Value = {
-      parseValueToken(fromToken).right.flatMap(from => {
-        parseValueToken(toToken).right.flatMap(to => {
-          parse(bodyTokens, env + (counterName -> from), (bodyExpr, _, bodyTail) => {
-            success(LoopExpr(DefExpr(counterName, from), to, bodyExpr), env, bodyTail)
-          }, failure)
-        })
-      })
+    def parseLoopWithLoopName(fromExpr : Expr, toExpr : Expr, loopNameTail : LiveStream[Token]) = {
+      loopNameTail match {
+        case SymbolToken(counterName) :~: tail => parseLoopWithRange(counterName, fromExpr, toExpr, tail, success, failure)
+        case unknown => failure(Error.SYNTAX_ERROR("name of a loop variable", unknown.toString))
+      }
     }
-
-    tokens match {
-      case fromToken :~: SymbolToken("to") :~: toToken :~: SymbolToken("using") :~: SymbolToken(counter) :~: tail =>
-        parseLoopWithRange(counter, fromToken, toToken, tail, success, failure)
-
-      case fromToken :~: SymbolToken("to") :~: toToken :~: tail =>
-        parseLoopWithRange(DEFAULT_LOOP_COUNTER, fromToken, toToken, tail, success, failure)
-
-      case toToken :~: SymbolToken("using") :~: SymbolToken(counter) :~: tail =>
-        parseLoopWithRange(counter, IntToken(1), toToken, tail, success, failure)
-
-      case toToken :~: tail =>
-        parseLoopWithRange(DEFAULT_LOOP_COUNTER, IntToken(1), toToken, tail, success, failure)
-
-      case tail => failure("Failed to parse loop. Expected to-token, got " + tail)
-    }
+    parse(tokens, env, (firstExpr, firstEnv, firstTail) => firstTail match {
+      case SymbolToken("to") :~: toTail => parse(toTail, env, (toExpr, toEnv, toTail) => toTail match {
+        case SymbolToken("using") :~: secondTail => parseLoopWithLoopName(firstExpr, toExpr, secondTail)
+        case _ => parseLoopWithRange(DEFAULT_LOOP_COUNTER, firstExpr, toExpr, toTail, success, failure)
+      }, failure)
+      case SymbolToken("using") :~: usingTail => parseLoopWithLoopName(NumberExpr(1), firstExpr, usingTail)
+      case _ => parseLoopWithRange(DEFAULT_LOOP_COUNTER, NumberExpr(1), firstExpr, firstTail, success, failure)
+    }, failure)
   }
 
   private def parseParameters(tokens: LiveStream[Token], env : ParserEnv, success : SuccessCont, failure : FailureCont) : Value = {
