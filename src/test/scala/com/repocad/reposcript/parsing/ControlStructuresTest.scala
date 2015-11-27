@@ -29,5 +29,10 @@ class ControlStructuresTest extends ParsingTest {
     testCode("repeat 2 to 5 using counter",
       LoopExpr(DefExpr("counter", NumberExpr(2)), NumberExpr(5), UnitExpr))
   }
+  it should "refer to a statement from the loop definition" in {
+    val env = ParserEnv("a" -> RefExpr("b", NumberType), "b" -> NumberExpr(2))
+    parseString("repeat a using c", env) should equal(
+      Right(LoopExpr(DefExpr("c", NumberExpr(1)), RefExpr("a", NumberType), UnitExpr) -> env))
+  }
 
 }
