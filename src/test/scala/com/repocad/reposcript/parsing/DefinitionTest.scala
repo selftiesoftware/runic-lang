@@ -108,5 +108,9 @@ class DefinitionTest extends ParsingTest {
     val o1 = ObjectType("o1", Seq(), AnyType)
     parseString("def o2(o as o1)", ParserEnv("o1" -> o1)).right.get._1 should equal(ObjectType("o2", Seq(RefExpr("o", o1.t)), AnyType))
   }
+//  it should "define an object recursively" in {
+//    def o : ObjectType = ObjectType("o", Seq(RefExpr("a", o)), AnyType)
+//    parseString("def o(a as o)").right.get._1 should equal(o)
+//  }
 
 }

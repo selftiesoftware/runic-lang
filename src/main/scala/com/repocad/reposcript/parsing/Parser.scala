@@ -113,11 +113,11 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       // References
       case SymbolToken(callName) :~: PunctToken(".") :~: SymbolToken(accessor) :~: tail =>
         env.getAsType(callName, t => t.isInstanceOf[ObjectType]) match {
-          case Some(RefExpr(_, ObjectType(objectName, objectParams, _))) => // RefExpr in function parameter lists
+          case Some(RefExpr(_, ObjectType(objectName, objectParams, _))) => // References in Functions
             objectParams.find(_.name == accessor).map(
               param => success(RefFieldExpr(callName, param.name, param.t), env, tail)
             ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(objectName, accessor)))
-          case Some(CallExpr(_, ObjectType(objectName, objectParams, _), _)) => // CallExpr in object instantiations
+          case Some(CallExpr(_, ObjectType(objectName, objectParams, _), _)) => // Calls
             objectParams.find(_.name == accessor).map(
               param => success(RefFieldExpr(callName, param.name, param.t), env, tail)
             ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(objectName, accessor)))
@@ -146,7 +146,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
 
   private def parseDefinition(tokens : LiveStream[Token], env : ParserEnv, success : SuccessCont, failure : FailureCont) : Value = {
     def parseFunctionParameters(parameterTokens : LiveStream[Token], success : (Seq[RefExpr], LiveStream[Token]) => Value, failure : FailureCont) = {
-      parseUntil(parseParameters, parameterTokens, _.head.tag.toString.equals(")"), env, (params, _, paramsTail) => {
+      parseUntil(parseParameters, parameterTokens, _.head.tag.toString == ")", env, (params, _, paramsTail) => {
         params match {
           case BlockExpr(exprs) => success(exprs.asInstanceOf[Seq[RefExpr]], paramsTail)
           case _ => failure(Error.EXPECTED_PARAMETERS(params.toString))
@@ -196,6 +196,8 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                 val function = FunctionExpr(name, parameters, body)
                 success(function, env.+(name -> function), bodyTail)
               }, failure)
+
+            case SymbolToken("{") :~: _ => failure(Error.SYNTAX_ERROR("=", "}"))
 
               // Extend objects
             //case SymbolToken("as")
