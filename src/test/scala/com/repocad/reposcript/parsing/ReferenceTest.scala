@@ -3,13 +3,13 @@ package com.repocad.reposcript.parsing
 class ReferenceTest extends ParsingTest {
 
   "Reference parsing" should "reference an existing definition" in {
-    parseString("a", ParserEnv("a" -> NumberExpr(1))).right.get._1 should equal(RefExpr("a", NumberType))
+    parseString("a", ParserEnv("a" -> NumberExpr(1))).right.get.expr should equal(RefExpr("a", NumberType))
   }
   it should "reference an existing function" in {
-    parseString("f()", ParserEnv("f" -> FunctionExpr("f", Seq(), NumberExpr(1)))).right.get._1 should equal(CallExpr("f", NumberType, Seq()))
+    parseString("f()", ParserEnv("f" -> FunctionExpr("f", Seq(), NumberExpr(1)))).right.get.expr should equal(CallExpr("f", NumberType, Seq()))
   }
   it should "reference an existing function with one parameter" in {
-    parseString("f(2)", ParserEnv("f" -> FunctionExpr("f", Seq(RefExpr("a", NumberType)), NumberExpr(1)))).right.get._1 should equal(CallExpr("f", NumberType, Seq(NumberExpr(2))))
+    parseString("f(2)", ParserEnv("f" -> FunctionExpr("f", Seq(RefExpr("a", NumberType)), NumberExpr(1)))).right.get.expr should equal(CallExpr("f", NumberType, Seq(NumberExpr(2))))
   }
   //   TODO: Better error reportings for function and object calls
 //  it should "fail to reference an existing function with different number of parameters" in {
@@ -24,18 +24,19 @@ class ReferenceTest extends ParsingTest {
   it should "infer a super type of a typed argument in a function" in {
     val env = ParserEnv("Number" -> NumberType)
     parseString("{ def a(b as Number) = 1 a(3) }", env) should equal(
-      Right(BlockExpr(Seq(FunctionExpr("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)), CallExpr("a", NumberType, Seq(NumberExpr(3))))), env)
+      Right(ParserState(BlockExpr(Seq(FunctionExpr("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)),
+        CallExpr("a", NumberType, Seq(NumberExpr(3))))), env))
     )
   }
 
   "Consecutive function calls" should "parse operations recursively" in {
-    parseString("1 + 2 + 3").right.get._1 should equal(
+    parseString("1 + 2 + 3").right.get.expr should equal(
       CallExpr("+", NumberType, Seq(NumberExpr(1),
         CallExpr("+", NumberType, Seq(NumberExpr(2), NumberExpr(3)))))
     )
   }
   it should "parse expressions in parenthesis before others" in {
-    parseString("(1 + 2) + 3").right.get._1 should equal(
+    parseString("(1 + 2) + 3").right.get.expr should equal(
       CallExpr("+", NumberType, Seq(BlockExpr(Seq(
         CallExpr("+", NumberType, Seq(NumberExpr(1), NumberExpr(2))))),
         NumberExpr(3))
@@ -43,7 +44,7 @@ class ReferenceTest extends ParsingTest {
     )
   }
   it should "parse expressions in parenthesis first, even when last" in {
-    parseString("1 + (2 + 3)").right.get._1 should equal(
+    parseString("1 + (2 + 3)").right.get.expr should equal(
       CallExpr("+", NumberType, Seq(
         NumberExpr(1),
         BlockExpr(Seq(CallExpr("+", NumberType, Seq(NumberExpr(2), NumberExpr(3))))))

@@ -1,5 +1,7 @@
 package com.repocad.reposcript.parsing
 
+import com.repocad.reposcript.lexing.{LiveStream, Token, LiveNil}
+
 class DefinitionTest extends ParsingTest {
 
   /* Values */
@@ -13,10 +15,18 @@ class DefinitionTest extends ParsingTest {
     testEquals(DefExpr("a", NumberExpr(10)), "def a as Number = 10")
   }
   it should "store a value in the value environment" in {
-    parseString("def a = 10", ParserEnv()) should equal (Right(DefExpr("a", NumberExpr(10)), ParserEnv("a" -> NumberExpr(10))))
+    parseString("def a = 10", ParserEnv()).right.get.env should equal (ParserEnv("a" -> NumberExpr(10)))
   }
   it should "fail when wrong type is specified" in {
     parseString("def a as Unit = 1").isLeft should equal (true)
+  }
+  it should "recognise future expressions as part of the definition" in {
+    parseString("def a = 10 * 20").right.get.expr should equal(DefExpr("a", CallExpr("*", NumberType, Seq(NumberExpr(10), NumberExpr(20)))))
+  }
+  it should "recognise future expressions as part of the definition after function calls" in {
+    val env = ParserEnv("f" -> FunctionExpr("f", Seq(), NumberExpr(2)), "*" -> FunctionExpr("*", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberExpr(2)))
+    parseString("def a = f() * 20", env).right.get.expr should equal(
+      DefExpr("a", CallExpr("*", NumberType, Seq(CallExpr("f", NumberType, Seq()), NumberExpr(20)))))
   }
 
   /* Functions */
@@ -39,15 +49,19 @@ class DefinitionTest extends ParsingTest {
     testEquals(FunctionExpr("a", Seq(RefExpr("b", NumberType), RefExpr("c", NumberType), RefExpr("d", StringType), RefExpr("e", BooleanType)), UnitExpr), "def a(b as Number c as Number d as String e as Boolean) = ")
   }
   it should "parse a function with a prepended parameter" in {
-    testEquals(FunctionExpr("a", Seq(RefExpr("b", NumberType)),UnitExpr), "def (b as Number)a = ")
+    testEquals(FunctionExpr("a", Seq(RefExpr("b", NumberType)), UnitExpr), "def (b as Number)a = ")
   }
   it should "store a function in the value environment" in {
     val function = FunctionExpr("a", Seq(), UnitExpr)
-    parseString("def a() = ", ParserEnv()) should equal (Right(function, ParserEnv("a" -> function)))
+    parseString("def a() = ", ParserEnv()).right.get.env should equal (ParserEnv("a" -> function))
   }
   it should "accept references to existing parameters in the function body" in {
     val function = FunctionExpr("a", Seq(RefExpr("b", NumberType)), RefExpr("b", NumberType))
     testEquals(function, "def a(b as Number) = b")
+  }
+  it should "call a function with no parameters" in {
+    val function = FunctionExpr("a", Seq(), NumberExpr(8))
+    testEquals(CallExpr("a", NumberType, Seq()), "a()", ParserEnv("a" -> function))
   }
   it should "refer to a Number parameter as a Number in an assignment" in {
     val function = FunctionExpr("a", Seq(RefExpr("b", NumberType)), DefExpr("c", RefExpr("b", NumberType)))
@@ -60,22 +74,22 @@ class DefinitionTest extends ParsingTest {
   }
   it should "refer to an object element in a function" in {
     val obj = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
-    val function = FunctionExpr("a", Seq(RefExpr("x", obj)), RefFieldExpr("x", "a", NumberType))
+    val function = FunctionExpr("a", Seq(RefExpr("x", obj)), RefFieldExpr(RefExpr("x", obj), "a", NumberType))
     testEquals(function, "def a(x as o) = x.a", ParserEnv("o" -> obj))
   }
 
   /* Objects */
   "A object parser" should "create an object and a type" in {
-    parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get._1 should equal(
+    parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get.expr should equal(
       ObjectType("object", Seq(RefExpr("a", AnyType)), AnyType))
   }
   it should "store the object in the environment" in {
-    parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get._2 should equal(
+    parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get.env should equal(
       ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", AnyType)), AnyType), "Any" -> AnyType))
   }
   it should "call a previously defined object" in {
     val t = ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType)
-    parseString("object(12)", ParserEnv("object" -> t)).right.get._1 should equal(
+    parseString("object(12)", ParserEnv("object" -> t)).right.get.expr should equal(
       CallExpr("object", t, Seq(NumberExpr(12))))
   }
   it should "fail when calling an object with the wrong parameter type" in {
@@ -84,18 +98,22 @@ class DefinitionTest extends ParsingTest {
   it should "fail when calling an object with the wrong parameter list length" in {
     parseString("object(12, \"string\")", ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
   }
+  it should "refer to a field in an object" in {
+    val obj = ObjectType("o", Seq(RefExpr("x", NumberType)), AnyType)
+    parseString("o(10).x", ParserEnv("o" -> obj)).right.get.expr should equal(RefFieldExpr(CallExpr("o", obj, Seq(NumberExpr(10))), "x", NumberType))
+  }
   it should "refer to an object" in {
     val obj = ObjectType("o", Seq(RefExpr("x", NumberType)), AnyType)
     val instance = CallExpr("o", obj, Seq(NumberExpr(10)))
     val expr = parseStringAll("def o(x as Number) \n def i = o(10) \n i.x", ParserEnv("Number" -> NumberType))
-    expr.right.get._1 should equal(
-      BlockExpr(Seq(obj, DefExpr("i", instance), RefFieldExpr("i", "x", NumberType))))
+    expr.right.get.expr should equal(
+      BlockExpr(Seq(obj, DefExpr("i", instance), RefFieldExpr(RefExpr("i", obj), "x", NumberType))))
   }
   it should "reference a field in an object" in {
     val value = "hello"
     val t = ObjectType("object", Seq(RefExpr("name", StringType)), AnyType)
-    parseString("instance.name", ParserEnv("object" -> t, "instance" -> CallExpr("object", t, Seq(StringExpr(value))))).right.get._1 should equal(
-      RefFieldExpr("instance", "name", StringType)
+    parseString("instance.name", ParserEnv("object" -> t, "instance" -> CallExpr("object", t, Seq(StringExpr(value))))).right.get.expr should equal(
+      RefFieldExpr(RefExpr("instance", t), "name", StringType)
     )
   }
   it should "fail to access a field that does not exist in an object" in {
@@ -106,7 +124,7 @@ class DefinitionTest extends ParsingTest {
   }
   it should "reference another object" in {
     val o1 = ObjectType("o1", Seq(), AnyType)
-    parseString("def o2(o as o1)", ParserEnv("o1" -> o1)).right.get._1 should equal(ObjectType("o2", Seq(RefExpr("o", o1.t)), AnyType))
+    parseString("def o2(o as o1)", ParserEnv("o1" -> o1)).right.get.expr should equal(ObjectType("o2", Seq(RefExpr("o", o1.t)), AnyType))
   }
 //  it should "define an object recursively" in {
 //    def o : ObjectType = ObjectType("o", Seq(RefExpr("a", o)), AnyType)

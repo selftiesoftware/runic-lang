@@ -27,9 +27,9 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
     expr match {
 
       case ImportExpr(name) =>
-        remoteCache.get(name, code => parser.parse(Lexer.lex(code))).right.flatMap(expr => {
+        remoteCache.get(name, code => parser.parse(Lexer.lex(code))).right.flatMap(state => {
           val remotePrinterEnv : Env = env ++ Printer.emptyEvaluatorEnv
-          eval(expr._1, remotePrinterEnv).right.map(t => (t._1 ++ env) -> t._2)
+          eval(state.expr, remotePrinterEnv).right.map(t => (t._1 ++ env) -> t._2)
         })
 
       case v : ValueExpr[_] => Right(env -> v.value)
@@ -183,12 +183,12 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
         )(x => Right(env -> x))
 
       case RefFieldExpr(name, field, t) =>
-        env.get(name).fold[Value](
-          Left(s"Could not find object of name $name")
-        )(_.asInstanceOf[Map[String, Any]].get(field).fold[Value](
-          Left(s"Cannot find field $field in object $name")
+        eval(name, env) match {
+          case m: Map[String, Any] => m.get(field).fold[Value](
+            Left(s"Cannot find field $field in object $name")
           )(value => Right(env -> value))
-        )
+          case _ => Left(s"Could not find object of name $name")
+        }
 
       case seq: BlockExpr =>
         if (seq.expr.isEmpty) {

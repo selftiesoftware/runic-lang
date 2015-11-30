@@ -18,7 +18,7 @@ case class FunctionExpr(name : String, params : Seq[RefExpr], body : Expr) exten
   val t = FunctionType(body.t)
 }
 case class RefExpr(name: String, t : AnyType) extends Expr
-case class RefFieldExpr(objectName : String, field : String, t : AnyType) extends Expr
+case class RefFieldExpr(ref : Expr, field : String, t : AnyType) extends Expr
 case object UnitExpr extends Expr { val t = UnitType }
 
 trait ControlExpr extends Expr
@@ -53,6 +53,11 @@ trait AnyType extends Expr {
     }
   }
 
+  /**
+    * Examines if the given [[Expr]] is a child of, or equal to, this Expr.
+    * @param that The type to examine.
+    * @return True if ``that`` is a child of this Expr or if it is the same as this Expr. False if not.
+    */
   def isChild(that : AnyType) : Boolean = {
     if (this == AnyType || that == this) {
       true

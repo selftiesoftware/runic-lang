@@ -15,12 +15,12 @@ class ReposcriptIntegrationTest extends FlatSpec with Matchers with MockFactory 
 
   "Reposcript" should "parse a plus statement" in {
     (mockPrinter.circle _).expects(0d, 0d, 20d).once()
-    val expr = parser.parse(Lexer.lex("def a as Number = 10 \n def b = a + 10 \n circle(0 0 b)")).right.get._1
+    val expr = parser.parse(Lexer.lex("def a as Number = 10 \n def b = a + 10 \n circle(0 0 b)")).right.get.expr
     evaluator.eval(expr, mockPrinter)
   }
   it should "access an object element from a function" in {
     val expr = parser.parse(Lexer.lex("def Object(x as Number) \n def function(o as Object) = o.x \n function(Object(10))"))
-    evaluator.eval(expr.right.get._1, mockPrinter).right.get._2 should equal(10)
+    evaluator.eval(expr.right.get.expr, mockPrinter).right.get._2 should equal(10)
   }
 
 }

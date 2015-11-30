@@ -8,10 +8,16 @@ import com.repocad.reposcript.lexing.{Token, LiveStream}
  */
 package object parsing {
 
-  type Value = Either[String, (Expr, ParserEnv)]
+  type Value = Either[String, ParserState]
 
   type FailureCont = String => Value
-  type SuccessCont = (Expr, ParserEnv, LiveStream[Token]) => Value
+  type SuccessCont = ParserState => Value
+
+  case class ParserState(expr : Expr, env : ParserEnv, tokens : LiveStream[Token])
+  object ParserState {
+    private val emptyStream = LiveStream[Token](Iterable())
+    def apply(expr : Expr, env : ParserEnv) : ParserState = ParserState(expr, env, emptyStream)
+  }
 
   lazy val stringTypeMap : Map[String, AnyType] = Map(
     "Boolean" -> BooleanType,
@@ -22,7 +28,7 @@ package object parsing {
 
   object Error {
 
-    def EXPECTED_OBJECT_ACCESS(name: String, rawString: String): String = s"Expected access to object field by a single (.), but received $rawString"
+    def EXPECTED_OBJECT_ACCESS(actual: String): String = s"Expected access to object, but tried to access the expression $actual"
     def EXPECTED_PARAMETERS(actual : String) : String = s"Expected parameter list when creating a function or object, but received '$actual'"
     def EXPECTED_PARAMETER_NUMBER(functionName : String, expected : Int, actual : Int) : String = s"Function '$functionName' requires $expected parameters, but $actual was given"
     def EXPECTED_TYPE_PARAMETERS(name : String) : String = s"No type information for variable $name; please specify its type using '$name as [Type]'"

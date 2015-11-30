@@ -2,7 +2,7 @@ package com.repocad.reposcript.parsing
 
 class ControlStructuresTest extends ParsingTest {
 
-  def testCode(code : String, expected : Expr) = parseString(code, ParserEnv()) should equal(Right(expected, ParserEnv()))
+  def testCode(code : String, expected : Expr) = parseString(code, ParserEnv()).right.get.expr should equal(expected)
   def testCode(code : String, expected : String) = parseString(code, ParserEnv()) should equal(Left(expected))
 
   "Control structure parsing" should "parse an if statement without an else block" in {
@@ -31,8 +31,8 @@ class ControlStructuresTest extends ParsingTest {
   }
   it should "refer to a statement from the loop definition" in {
     val env = ParserEnv("a" -> RefExpr("b", NumberType), "b" -> NumberExpr(2))
-    parseString("repeat a using c", env) should equal(
-      Right(LoopExpr(DefExpr("c", NumberExpr(1)), RefExpr("a", NumberType), UnitExpr) -> env))
+    parseString("repeat a using c", env).right.get.expr should equal(
+      LoopExpr(DefExpr("c", NumberExpr(1)), RefExpr("a", NumberType), UnitExpr))
   }
 
 }
