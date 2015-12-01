@@ -72,19 +72,30 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
 
       // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        if (state.env.contains(name)) {
-          parseUntil(PunctToken(")"), state.copy(tokens = tail), (state : ParserState) => state.expr match {
+        def parseCall(originalParameters : Seq[RefExpr], t : AnyType, errorFunction : String => String) : Value = {
+          parseUntil(PunctToken(")"), state.copy(tokens = tail), (parameterState: ParserState) => parameterState.expr match {
             case BlockExpr(params) =>
-              val exprOption : Option[CallExpr] = state.env.getAll(name).flatMap(_.collectFirst({
-                case o : ObjectType if verifySameParams(o.params, params) => CallExpr(name, o.t, params)
-                case f : FunctionExpr if verifySameParams(f.params, params) => CallExpr(name, f.t.returnType, params)
-              }))
-              exprOption.map(expr => success(state.copy(expr = expr, tokens = state.tokens)))
-                .getOrElse(failure(s"No function or object called '$name' fits parameter-list $params"))
+              if (verifySameParams(originalParameters, params)) {
+                success(ParserState(CallExpr(name, t, params), state.env, parameterState.tokens))
+              } else {
+                failure(errorFunction(params.toString))
+              }
             case _ => failure(Error.EXPECTED_PARAMETERS(state.expr.toString))
           }, failure)
-        } else {
-          failure(Error.FUNCTION_NOT_FOUND(name))
+        }
+
+        state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
+          case Some(function: FunctionExpr) =>
+            parseCall(function.params, function.t.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _))
+          case None =>
+            state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
+              case Some(o: ObjectType) =>
+                parseCall(o.params, o.t, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _))
+              case None => state.env.get(name) match {
+                case Some(expr) => success(ParserState(RefExpr(name, expr.t), state.env, state.tokens.tail))
+                case _ => failure(Error.FUNCTION_NOT_FOUND(name))
+              }
+            }
         }
 
       // Values

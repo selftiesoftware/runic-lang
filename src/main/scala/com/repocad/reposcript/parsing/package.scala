@@ -28,7 +28,9 @@ package object parsing {
 
   object Error {
 
+    def EXPECTED_FUNCTION_PARAMETERS(name : String, expected : String, actual : String) = s"Expected parameters for function $name like $expected, but got $actual"
     def EXPECTED_OBJECT_ACCESS(actual: String): String = s"Expected access to object, but tried to access the expression $actual"
+    def EXPECTED_OBJECT_PARAMETERS(name : String, expected : String, actual : String) = s"Expected call for the object $name like $expected, but got $actual"
     def EXPECTED_PARAMETERS(actual : String) : String = s"Expected parameter list when creating a function or object, but received '$actual'"
     def EXPECTED_PARAMETER_NUMBER(functionName : String, expected : Int, actual : Int) : String = s"Function '$functionName' requires $expected parameters, but $actual was given"
     def EXPECTED_TYPE_PARAMETERS(name : String) : String = s"No type information for variable $name; please specify its type using '$name as [Type]'"

@@ -51,5 +51,19 @@ class ReferenceTest extends ParsingTest {
       )
     )
   }
+  it should "not parse a reference as a function call in a parameter list" in {
+    val env = ParserEnv("a" -> NumberExpr(10),
+      "f" -> FunctionExpr("f", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), NumberType),
+      "+" -> FunctionExpr("+", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType))
+    parseString("f(a (10 + 10))", env).right.get.expr should equal(
+      CallExpr("f", NumberType, Seq(RefExpr("a", NumberType), BlockExpr(Seq(CallExpr("+", NumberType, Seq(NumberExpr(10), NumberExpr(10))))))))
+  }
+  it should "parse two functions as a part of the other" in {
+    val env = ParserEnv("+" -> FunctionExpr("+", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType),
+                        "cos" -> FunctionExpr("+", Seq(RefExpr("a", NumberType)), NumberType))
+    parseString("cos(1) + 2", env).right.get.expr should equal(
+      CallExpr("+", NumberType, Seq(CallExpr("cos", NumberType, Seq(NumberExpr(1))), NumberExpr(2)))
+    )
+  }
 
 }
