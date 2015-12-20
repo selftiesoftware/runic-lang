@@ -67,13 +67,13 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       case SymbolToken("def") :~: tail => parseDefinition(state.copy(tokens = tail), success, failure)
 
       // Blocks
-      case PunctToken("{") :~: tail => parseUntil(PunctToken("}"), state.copy(expr = UnitExpr, tokens = tail), success, failure)
-      case PunctToken("(") :~: tail => parseUntil(PunctToken(")"), state.copy(expr = UnitExpr, tokens = tail), success, failure)
+      case PunctToken("{") :~: tail => parseUntil("}", state.copy(expr = UnitExpr, tokens = tail), success, failure)
+      case PunctToken("(") :~: tail => parseUntil(")", state.copy(expr = UnitExpr, tokens = tail), success, failure)
 
       // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
         def parseCall(originalParameters : Seq[RefExpr], t : AnyType, errorFunction : String => String) : Value = {
-          parseUntil(PunctToken(")"), state.copy(tokens = tail), (parameterState: ParserState) => parameterState.expr match {
+          parseUntil(")", state.copy(tokens = tail), (parameterState: ParserState) => parameterState.expr match {
             case BlockExpr(params) =>
               if (verifySameParams(originalParameters, params)) {
                 success(ParserState(CallExpr(name, t, params), state.env, parameterState.tokens))
@@ -307,9 +307,9 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     }
   }
 
-  private def parseUntil(token : Token, state : ParserState,
+  private def parseUntil(token : String, state : ParserState,
                          success : SuccessCont, failure: FailureCont): Value = {
-    parseUntil(parse, stream => stream.head.toString.equals(token.toString), state, success, failure)
+    parseUntil(parse, stream => stream.head.toString.equals(token), state, success, failure)
   }
 
   private def parseUntil(parseCallback : (ParserState, SuccessCont, FailureCont) => Value,

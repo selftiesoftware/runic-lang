@@ -13,12 +13,15 @@ class Lexer extends NonblockingLexer[Char, Token] {
 
   implicit def charsToString(l : List[Char]) : String = l.mkString
 
+  private var position : Position = Position(0)
+
   // Abbreviations:
   private val ch = "#\\" ~ AnyChar
   private val id = (('A' thru 'Z') || ('a' thru 'z') || ('0' thru '9') || oneOf("-+/*_?%$#&^=!@<>:")).+
   private val int    = ("-"?) ~ ('0' thru '9').+
   private val double = ("-"?) ~ ('0' thru '9').+ ~ '.' ~ ('0' thru '9').+
-  private val ws = oneOf(" \r\t\n").+ // whitespace
+  private val ws = oneOf(" \r\t").+ // whitespace
+  private val nl = oneOf("\n").+ // newline
   private val com = "\\\\" ~ ((!oneOf("\r\n"))*) // single-line comment
   private val hashComment = "#" ~ ((!oneOf("\r\n"))*) // hashtag comments
 
@@ -37,27 +40,27 @@ class Lexer extends NonblockingLexer[Char, Token] {
   // Regular tokens
   MAIN (com)   { }
   MAIN (hashComment)   { }
-  MAIN (",@")  { emit(PunctToken(",@")) }
-  MAIN (",")   { emit(PunctToken(",")) }
-  MAIN ("`")   { emit(PunctToken("`")) }
-  MAIN ("'")   { emit(PunctToken("'")) }
-  MAIN ("#(")  { emit(PunctToken("#(")) }
-  MAIN ("(")   { emit(PunctToken("(")) }
-  MAIN (")")   { emit(PunctToken(")")) }
-  MAIN ("[")   { emit(PunctToken("[")) }
-  MAIN ("]")   { emit(PunctToken("]")) }
-  MAIN ("{")   { emit(PunctToken("{")) }
-  MAIN ("}")   { emit(PunctToken("}")) }
-  MAIN (".")   { emit(PunctToken(".")) }
+  MAIN (",@")  { emit(PunctToken(",@")(position)) }
+  MAIN (",")   { emit(PunctToken(",")(position)) }
+  MAIN ("`")   { emit(PunctToken("`")(position)) }
+  MAIN ("'")   { emit(PunctToken("'")(position)) }
+  MAIN ("(")   { emit(PunctToken("(")(position)) }
+  MAIN (")")   { emit(PunctToken(")")(position)) }
+  MAIN ("[")   { emit(PunctToken("[")(position)) }
+  MAIN ("]")   { emit(PunctToken("]")(position)) }
+  MAIN ("{")   { emit(PunctToken("{")(position)) }
+  MAIN ("}")   { emit(PunctToken("}")(position)) }
+  MAIN (".")   { emit(PunctToken(".")(position)) }
   MAIN (END)   { terminate() }
-  MAIN (ws)    { }
-  MAIN (ch)    over { chars => emit(CharToken(chars(2))) }
-  MAIN (int)   over { chars => emit(IntToken(Integer.parseInt(chars))) }
-  MAIN (double) over { chars => emit(DoubleToken(java.lang.Double.parseDouble(chars)))}
-  MAIN (id)    over { chars => emit(SymbolToken(chars)) }
+  MAIN (ws)    {  }
+  MAIN (nl)    { position = position.copy(lineNumber = position.lineNumber + 1) }
+  MAIN (ch)    over { chars => emit(CharToken(chars(2))(position)) }
+  MAIN (int)   over { chars => emit(IntToken(Integer.parseInt(chars))(position)) }
+  MAIN (double) over { chars => emit(DoubleToken(java.lang.Double.parseDouble(chars))(position))}
+  MAIN (id)    over { chars => emit(SymbolToken(chars)(position)) }
 
   // Strings
-  STRING ("\"")    = { (string : List[Char], _ : List[Char])     => { emit(StringToken(string.reverse.mkString)) ; MAIN } }
+  STRING ("\"")    = { (string : List[Char], _ : List[Char])     => { emit(StringToken(string.reverse.mkString)(position)) ; MAIN } }
   STRING ("\\\"")  = { (string : List[Char], chars : List[Char]) => STRING('"' :: string) }
   STRING ("\\n")   = { (string : List[Char], chars : List[Char]) => STRING('\n' :: string) }
   STRING ("\\\\")  = { (string : List[Char], chars : List[Char]) => STRING('\\' :: string) }

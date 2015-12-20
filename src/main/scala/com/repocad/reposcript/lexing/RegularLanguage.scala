@@ -529,7 +529,7 @@ abstract class NonblockingLexer[C <: Char, A] {
     /**
     Adds a rule to this state which matches regex and fires action.
       */
-    def apply(regex: RegularLanguage): Matchable = {
+    def apply(regex: RegularLanguage) : Matchable = {
       val that: LexerState = this
       new Matchable {
         def apply(action: => Unit) {

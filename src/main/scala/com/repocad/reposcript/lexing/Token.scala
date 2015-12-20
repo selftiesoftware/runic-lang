@@ -22,6 +22,11 @@ trait Token extends Ordered[Token] {
     */
   def isParsingMarker : Boolean ;
 
+  /**
+    * A position indicating the source code position of the token.
+    */
+  val position : Position
+
   protected def localCompare(that : Token) : Int ;
 
   /**
@@ -54,7 +59,7 @@ trait Token extends Ordered[Token] {
 /**
 Punctuation tokens.
   */
-case class PunctToken(s : String) extends Token {
+case class PunctToken(s : String)(implicit val position : Position) extends Token {
   def isParsingMarker = false
 
   protected def localCompare(that : Token) = that match {
@@ -70,7 +75,7 @@ case class PunctToken(s : String) extends Token {
 /**
 Symbol tokens.
   */
-case class SymbolToken(s : String) extends Token {
+case class SymbolToken(s : String)(implicit val position : Position) extends Token {
   def isParsingMarker = false
 
   protected def localCompare(that : Token) = that match {
@@ -86,7 +91,7 @@ case class SymbolToken(s : String) extends Token {
 /**
 String literal tokens.
   */
-case class StringToken(s : String) extends Token {
+case class StringToken(s : String)(implicit val position : Position) extends Token {
   def isParsingMarker = false
 
   protected def localCompare(that : Token) = that match {
@@ -102,7 +107,7 @@ case class StringToken(s : String) extends Token {
 /**
 Integer tokens.
   */
-case class IntToken(n : Int) extends Token {
+case class IntToken(n : Int)(implicit val position : Position) extends Token {
   def isParsingMarker = false
 
   protected def localCompare(that : Token) = that match {
@@ -118,7 +123,7 @@ case class IntToken(n : Int) extends Token {
 /**
 Boolean literal tokens.
   */
-case class BooleanToken(b : Boolean) extends Token {
+case class BooleanToken(b : Boolean)(implicit val position : Position) extends Token {
   def isParsingMarker = false
 
   protected def localCompare(that : Token) = that match {
@@ -134,7 +139,7 @@ case class BooleanToken(b : Boolean) extends Token {
 /**
 Character tokens.
   */
-case class CharToken(c : Char) extends Token {
+case class CharToken(c : Char)(implicit val position : Position) extends Token {
   def isParsingMarker = false
 
   protected def localCompare(that : Token) = that match {
@@ -147,7 +152,7 @@ case class CharToken(c : Char) extends Token {
   override lazy val toString = "'" + c + "'"
 }
 
-case class DoubleToken(d : Double) extends Token {
+case class DoubleToken(d : Double)(implicit val position : Position) extends Token {
   def isParsingMarker = false
 
   protected def localCompare(that : Token) = that match {
@@ -159,3 +164,5 @@ case class DoubleToken(d : Double) extends Token {
   override lazy val hashCode = d.hashCode
   override lazy val toString = d.toString
 }
+
+case class Position(lineNumber : Int)
