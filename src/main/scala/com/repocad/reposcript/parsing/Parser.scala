@@ -109,12 +109,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
 
       // References to values, functions or objects
       case SymbolToken(name) :~: tail =>
-        val exprOption = if (tail.source.headOption.exists(_.tag == "(")) {
-          state.env.getAsType(name, t => t.isInstanceOf[FunctionType] || t.isInstanceOf[ObjectType])
-        } else {
-          state.env.get(name)
-        }
-        exprOption match {
+        state.env.get(name) match {
           case Some(expr) => success(ParserState(RefExpr(name, expr.t), state.env, tail))
           case _ => failure(Error.REFERENCE_NOT_FOUND(name)(state.position))
         }
