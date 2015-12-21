@@ -75,8 +75,7 @@ class Lexer extends NonblockingLexer[Char, Token] {
 
 object Lexer {
   def lex(code : String) : LiveStream[Token] = {
-    val lowercase = code.toLowerCase
-    val stream = LiveStream(lowercase)
+    val stream = LiveStream(code)
     val lexer = new Lexer()
     lexer.lex(stream)
     lexer.output

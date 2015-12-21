@@ -11,6 +11,9 @@ class ReferenceTest extends ParsingTest {
   it should "reference an existing function with one parameter" in {
     parseString("f(2)", ParserEnv("f" -> FunctionExpr("f", Seq(RefExpr("a", NumberType)), NumberExpr(1)))).right.get.expr should equal(CallExpr("f", NumberType, Seq(NumberExpr(2))))
   }
+  it should "choose the correct type" in {
+    parseStringAll("def H() = {} def h = 10 def x = 10 * h {}").isRight should equal (true)
+  }
   //   TODO: Better error reportings for function and object calls
 //  it should "fail to reference an existing function with different number of parameters" in {
 //    parseString("f()", ParserEnv("f" -> FunctionExpr("f", Seq(RefExpr("a", NumberType)), NumberExpr(1)))) should equal(Left(Error.EXPECTED_PARAMETER_NUMBER("f", 1, 0)))
