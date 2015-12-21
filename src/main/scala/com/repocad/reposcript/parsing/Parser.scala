@@ -21,19 +21,20 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       parseUntil(parse, _ => false, ParserState(UnitExpr, defaultEnv, tokens),
                  state => Right(state), e => Left(e), spillEnvironment)
     } catch {
-      case e : InternalError => Left("Script too large (sorry - we're working on it!)")
-      case e : Exception => Left(e.getLocalizedMessage)
+      case e : InternalError => Left(Error("Script too large (sorry - we're working on it!)", Position.empty))
+      case e : Exception => Left(Error(e.getLocalizedMessage, Position.empty))
     }
   }
 
   def parse(state : ParserState, successWithoutSuffix: SuccessCont, failure: FailureCont): Value = {
+
     val success : SuccessCont = prefixState => parseSuffix(prefixState, successWithoutSuffix, failure)
 
     state.tokens match {
 
       // Import
       case SymbolToken("import") :~: SymbolToken(script) :~: tail =>
-        val res = remoteCache.get(script, code => parse(Lexer.lex(code), spillEnvironment = true))
+        val res = remoteCache.get(script, state.position, code => parse(Lexer.lex(code), spillEnvironment = true))
         res match {
           case Left(error) => failure(error)
           case Right(importState) =>
@@ -43,7 +44,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       case SymbolToken("if") :~: tail =>
         parse(state.copy(tokens = tail), conditionState => {
           if (conditionState.expr.t != BooleanType) {
-            failure(Error.TYPE_MISMATCH(BooleanType.toString, conditionState.expr.t.toString))
+            failure(Error.TYPE_MISMATCH(BooleanType.toString, conditionState.expr.t.toString)(state.position))
           } else {
             parse(conditionState, ifState => {
               ifState.tokens match {
@@ -72,7 +73,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
 
       // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        def parseCall(originalParameters : Seq[RefExpr], t : AnyType, errorFunction : String => String) : Value = {
+        def parseCall(originalParameters : Seq[RefExpr], t : AnyType, errorFunction : String => Error) : Value = {
           parseUntil(")", state.copy(tokens = tail), (parameterState: ParserState) => parameterState.expr match {
             case BlockExpr(params) =>
               if (verifySameParams(originalParameters, params)) {
@@ -80,20 +81,20 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
               } else {
                 failure(errorFunction(params.toString))
               }
-            case _ => failure(Error.EXPECTED_PARAMETERS(state.expr.toString))
+            case _ => failure(Error.EXPECTED_PARAMETERS(state.expr.toString)(parameterState.position))
           }, failure)
         }
 
         state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
           case Some(function: FunctionExpr) =>
-            parseCall(function.params, function.t.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _))
+            parseCall(function.params, function.t.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
           case None =>
             state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
               case Some(o: ObjectType) =>
-                parseCall(o.params, o.t, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _))
+                parseCall(o.params, o.t, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
               case None => state.env.get(name) match {
                 case Some(expr) => success(ParserState(RefExpr(name, expr.t), state.env, state.tokens.tail))
-                case _ => failure(Error.FUNCTION_NOT_FOUND(name))
+                case _ => failure(Error.FUNCTION_NOT_FOUND(name)(state.position))
               }
             }
         }
@@ -110,12 +111,12 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       case SymbolToken(name) :~: tail =>
         state.env.get(name) match {
           case Some(expr) => success(ParserState(RefExpr(name, expr.t), state.env, tail))
-          case _ => failure(Error.REFERENCE_NOT_FOUND(name))
+          case _ => failure(Error.REFERENCE_NOT_FOUND(name)(state.position))
         }
 
       case rest if rest.isEmpty => success(state.copy(UnitExpr, tokens = rest))
 
-      case xs => failure(s"Unrecognised token pattern $xs")
+      case xs => failure(Error(s"Unrecognised token pattern $xs", xs.head.position))
     }
   }
 
@@ -125,10 +126,10 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       parseUntil(parseParameters, _.head.tag.toString == ")", ParserState(UnitExpr, outerState.env, parameterTokens),
         parametersState => { parametersState.expr match {
           case BlockExpr(exprs) if exprs.contains((e : Expr) => !e.isInstanceOf[RefExpr]) =>
-            failure(Error.EXPECTED_PARAMETERS(parameterTokens.toString))
+            failure(Error.EXPECTED_PARAMETERS(parameterTokens.toString)(parametersState.position))
           case BlockExpr(exprs) =>
             success(exprs.asInstanceOf[Seq[RefExpr]], parametersState.tokens)
-          case unknown => failure(Error.EXPECTED_PARAMETERS(unknown.toString))
+          case unknown => failure(Error.EXPECTED_PARAMETERS(unknown.toString)(parametersState.position))
         }
       }, failure)
     }
@@ -140,7 +141,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
           case SymbolToken("=") :~: functionTail =>
             parseFunctionBody(innerState.copy(env = innerState.env, tokens = functionTail), parameters,
               bodyState => success(parameters, bodyState.expr, bodyState.tokens), failure)
-          case tail => failure(Error.SYNTAX_ERROR("=", tail.toString))
+          case tail => failure(Error.SYNTAX_ERROR("=", tail.toString)(innerState.position))
         }
       }, failure)
     }
@@ -179,7 +180,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                 success(ParserState(function, outerState.env.+(name -> function), bodyState.tokens))
               }, failure)
 
-            case SymbolToken("{") :~: _ => failure(Error.SYNTAX_ERROR("=", "}"))
+            case SymbolToken("{") :~: _ => failure(Error.SYNTAX_ERROR("=", "}")(paramsTail.head.position))
 
               // Extend objects
             //case SymbolToken("as")
@@ -193,13 +194,13 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
 
       /* Assignments */
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: SymbolToken("=") :~: tail =>
-        verifyType(typeName, outerState.env).right.flatMap(parentType =>
+        verifyType(typeName, outerState).right.flatMap(parentType =>
           parse(outerState.copy(tokens = tail), assignmentState => {
             val assignmentExpr = assignmentState.expr
             parentType.isChild(assignmentExpr.t) match {
               case true => success(ParserState(DefExpr(name, assignmentExpr),
                 assignmentState.env + (name -> assignmentExpr), assignmentState.tokens))
-              case false => failure(s"'$name' has the expected type $parentType, but was assigned to type ${assignmentExpr.t}")
+              case false => failure(Error.ASSIGNMENT_TYPE_MISMATCH(name, parentType, assignmentExpr)(assignmentState.position))
             }
           }, failure)
         )
@@ -215,12 +216,12 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     }
   }
 
-  private def parseLoop(state : ParserState, success: SuccessCont, failure: String => Value) : Value = {
-    def parseLoopWithRange(counterName : String, from : Expr, to : Expr, bodyTokens : LiveStream[Token], success: SuccessCont, failure: String => Value) : Value = {
+  private def parseLoop(state : ParserState, success: SuccessCont, failure: FailureCont) : Value = {
+    def parseLoopWithRange(counterName : String, from : Expr, to : Expr, bodyTokens : LiveStream[Token], success: SuccessCont, failure: FailureCont) : Value = {
       if (!NumberType.isChild(from.t)) {
-        failure(Error.TYPE_MISMATCH("number", from.t.toString, "defining the number to start from in a loop"))
+        failure(Error.TYPE_MISMATCH("number", from.t.toString, "defining the number to start from in a loop")(state.position))
       } else if (!NumberType.isChild(to.t)) {
-        failure(Error.TYPE_MISMATCH("number", to.t.toString, "defining when to end a loop"))
+        failure(Error.TYPE_MISMATCH("number", to.t.toString, "defining when to end a loop")(state.position))
       } else {
         parse(ParserState(UnitExpr, state.env + (counterName -> from), bodyTokens), bodyState => {
           success(ParserState(LoopExpr(DefExpr(counterName, from), to, bodyState.expr),
@@ -231,7 +232,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     def parseLoopWithCounterName(fromExpr : Expr, toExpr : Expr, loopNameTail : LiveStream[Token]) = {
       loopNameTail match {
         case SymbolToken(counterName) :~: tail => parseLoopWithRange(counterName, fromExpr, toExpr, tail, success, failure)
-        case unknown => failure(Error.SYNTAX_ERROR("name of a loop variable", unknown.toString))
+        case unknown => failure(Error.SYNTAX_ERROR("name of a loop variable", unknown.toString)(state.position))
       }
     }
     parse(state, firstState => firstState.tokens match {
@@ -247,13 +248,13 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
   private def parseParameters(state : ParserState, success : SuccessCont, failure : FailureCont) : Value = {
     state.tokens match {
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail =>
-        verifyType(typeName, state.env) match {
+        verifyType(typeName, state) match {
           case Right(t) =>
             val reference = RefExpr(name, t)
             success(ParserState(reference, state.env.+(name -> reference), tail))
           case Left(error) => failure(error)
         }
-      case SymbolToken(name) :~: tail => failure(Error.EXPECTED_TYPE_PARAMETERS(name))
+      case SymbolToken(name) :~: tail => failure(Error.EXPECTED_TYPE_PARAMETERS(name)(state.position))
     }
   }
 
@@ -265,14 +266,14 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
         def findParamFromObject(reference : Expr, obj : ObjectType) : Value = {
           obj.params.find(_.name == accessor).map(
             param => success(ParserState(RefFieldExpr(reference, param.name, param.t), state.env, tail))
-          ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(obj.name, accessor)))
+          ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(obj.name, accessor)(state.position)))
         }
 
         state.expr match {
           case call : CallExpr if call.t.isInstanceOf[ObjectType] => findParamFromObject(call, call.t.asInstanceOf[ObjectType])
           case ref : RefExpr if ref.t.isInstanceOf[ObjectType] => findParamFromObject(ref, ref.t.asInstanceOf[ObjectType])
 
-          case unknown => failure(Error.EXPECTED_OBJECT_ACCESS(state.expr.toString))
+          case unknown => failure(Error.EXPECTED_OBJECT_ACCESS(state.expr.toString)(state.position))
         }
 
       case SymbolToken(name) :~: tail =>
@@ -292,12 +293,12 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                 if (f.params(1).t.isChild(secondParameter.t)) {
                   success(ParserState(CallExpr(name, f.t.returnType, Seq(firstParameter, secondParameter)), state.env, secondState.tokens))
                 } else {
-                  failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString))
+                  failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
                 }
               })
             case _ => state.env.get (name) match {
               case Some (expr) => success (state.copy(expr = RefExpr(name, expr.t), tokens = tail) )
-              case _ => failure (Error.REFERENCE_NOT_FOUND (name))
+              case _ => failure (Error.REFERENCE_NOT_FOUND(name)(state.position))
             }
           }
           case _ => success(state)
@@ -317,12 +318,12 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                          success : SuccessCont, failure : FailureCont, spillEnvironment : Boolean = false): Value = {
     var stateVar = beginningState
     var seqExpr : Seq[Expr] = Seq()
-    var seqFail : Option[String] = None
+    var seqFail : Option[Error] = None
     def seqSuccess: SuccessCont = state => {
       stateVar = state
       Right(stateVar)
     }
-    def seqFailure: (String) => Value = (s) => {
+    def seqFailure: FailureCont = (s) => {
       seqFail = Some(s)
       Left(s)
     }
@@ -361,10 +362,10 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     true
   }
 
-  private def verifyType(typeName : String, env : ParserEnv) : Either[String, AnyType] = {
-    env.getType(typeName) match {
+  private def verifyType(typeName : String, state : ParserState) : Either[Error, AnyType] = {
+    state.env.getType(typeName) match {
       case Some(typeObject) => Right(typeObject)
-      case _ => Left(Error.TYPE_NOT_FOUND(typeName))
+      case _ => Left(Error.TYPE_NOT_FOUND(typeName)(state.position))
     }
   }
 

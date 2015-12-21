@@ -1,6 +1,6 @@
 package com.repocad.reposcript.evaluating
 
-import com.repocad.reposcript.lexing.Lexer
+import com.repocad.reposcript.lexing.{Position, Lexer}
 import com.repocad.reposcript.parsing._
 import com.repocad.reposcript.{Printer, _}
 
@@ -27,10 +27,10 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
     expr match {
 
       case ImportExpr(name) =>
-        remoteCache.get(name, code => parser.parse(Lexer.lex(code))).right.flatMap(state => {
+        remoteCache.get(name, Position.empty, code => parser.parse(Lexer.lex(code))).right.flatMap(state => {
           val remotePrinterEnv : Env = env ++ Printer.emptyEvaluatorEnv
           eval(state.expr, remotePrinterEnv).right.map(t => (t._1 ++ env) -> t._2)
-        })
+        }).left.map(_.toString)
 
       case v : ValueExpr[_] => Right(env -> v.value)
 

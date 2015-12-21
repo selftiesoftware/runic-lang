@@ -76,6 +76,8 @@ class LiveStreamSource[A] {
     }
   }
 
+  def headOption = queue.headOption
+
 }
 
 

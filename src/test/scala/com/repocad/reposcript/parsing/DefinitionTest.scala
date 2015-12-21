@@ -1,6 +1,6 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.lexing.{LiveStream, Token, LiveNil}
+import com.repocad.reposcript.lexing.{Position, LiveStream, Token, LiveNil}
 
 class DefinitionTest extends ParsingTest {
 
@@ -120,7 +120,7 @@ class DefinitionTest extends ParsingTest {
     val value = "hello"
     val t = ObjectType("object", Seq(RefExpr("name", StringType)), AnyType)
     parseString("instance.noField", ParserEnv("object" -> t, "instance" -> CallExpr("object", t, Seq(StringExpr(value))))).left.get should equal(
-      Error.OBJECT_UNKNOWN_PARAMETER_NAME("object", "noField"))
+      Error.OBJECT_UNKNOWN_PARAMETER_NAME("object", "noField")(Position.start))
   }
   it should "reference another object" in {
     val o1 = ObjectType("o1", Seq(), AnyType)

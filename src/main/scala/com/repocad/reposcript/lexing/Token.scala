@@ -2,7 +2,6 @@ package com.repocad.reposcript.lexing
 
 import java.lang.{Object => TokenTag}
 
-
 /**
 Parsers consume live streams of tokens (or objects that can be implicitly converted into them).
 
@@ -21,11 +20,6 @@ trait Token extends Ordered[Token] {
 
     */
   def isParsingMarker : Boolean ;
-
-  /**
-    * A position indicating the source code position of the token.
-    */
-  val position : Position
 
   protected def localCompare(that : Token) : Int ;
 
@@ -53,6 +47,11 @@ trait Token extends Ordered[Token] {
       return c1
     this.localCompare(thatToken)
   }
+
+  /**
+    * A position indicating the source code position of the token.
+    */
+  val position : Position
 
 }
 
@@ -166,3 +165,8 @@ case class DoubleToken(d : Double)(implicit val position : Position) extends Tok
 }
 
 case class Position(lineNumber : Int)
+object Position {
+  val empty = Position(-1)
+  val end = Position(Int.MaxValue)
+  val start = Position(0)
+}
