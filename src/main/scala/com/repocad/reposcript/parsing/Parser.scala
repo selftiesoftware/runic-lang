@@ -310,7 +310,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
 
   private def parseUntil(token : String, state : ParserState,
                          success : SuccessCont, failure: FailureCont): Value = {
-    parseUntil(parse, stream => stream.head.toString.equals(token), state, success, failure)
+    parseUntil(parse, stream => stream.head.tag.toString.equals(token), state, success, failure)
   }
 
   private def parseUntil(parseCallback : (ParserState, SuccessCont, FailureCont) => Value,
