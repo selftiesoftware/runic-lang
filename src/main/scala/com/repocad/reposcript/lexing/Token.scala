@@ -163,10 +163,3 @@ case class DoubleToken(d : Double)(implicit val position : Position) extends Tok
   override lazy val hashCode = d.hashCode
   override lazy val toString = d.toString
 }
-
-case class Position(lineNumber : Int)
-object Position {
-  val empty = Position(-1)
-  val end = Position(Int.MaxValue)
-  val start = Position(0)
-}
