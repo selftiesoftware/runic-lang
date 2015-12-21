@@ -262,11 +262,11 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     state.tokens match {
 
       // Object field accessors
-      case PunctToken(".") :~: SymbolToken(accessor) :~: tail =>
+      case PunctToken(".") :~: (accessor : SymbolToken) :~: tail =>
         def findParamFromObject(reference : Expr, obj : ObjectType) : Value = {
-          obj.params.find(_.name == accessor).map(
+          obj.params.find(_.name == accessor.s).map(
             param => success(ParserState(RefFieldExpr(reference, param.name, param.t), state.env, tail))
-          ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(obj.name, accessor)(state.position)))
+          ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(obj.name, accessor.s)(accessor.position)))
         }
 
         state.expr match {
