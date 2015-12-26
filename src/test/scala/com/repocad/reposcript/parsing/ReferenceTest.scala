@@ -68,5 +68,9 @@ class ReferenceTest extends ParsingTest {
       CallExpr("+", NumberType, Seq(CallExpr("cos", NumberType, Seq(NumberExpr(1))), NumberExpr(2)))
     )
   }
+  it should "store a function in a value and call the reference" in {
+    parseStringAll("def f() = 10\ndef g = f\ng()").right.get.expr.asInstanceOf[BlockExpr].expr(2) should equal(
+      RefExpr("g", FunctionType(NumberType)))
+  }
 
 }

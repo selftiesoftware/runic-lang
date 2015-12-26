@@ -27,7 +27,6 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
   }
 
   def parse(state : ParserState, successWithoutSuffix: SuccessCont, failure: FailureCont): Value = {
-
     val success : SuccessCont = prefixState => parseSuffix(prefixState, successWithoutSuffix, failure)
 
     state.tokens match {
@@ -81,14 +80,14 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
               } else {
                 failure(errorFunction(params.toString))
               }
-            case _ => failure(Error.EXPECTED_PARAMETERS(state.expr.toString)(parameterState.position))
+            case x => failure(Error.EXPECTED_PARAMETERS(state.expr.toString)(parameterState.position))
           }, failure)
         }
 
         state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
           case Some(function: FunctionExpr) =>
             parseCall(function.params, function.t.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
-          case None =>
+          case _ => // Some(RefExpr) could be returned, so None does not cover this case entirely
             state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
               case Some(o: ObjectType) =>
                 parseCall(o.params, o.t, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
