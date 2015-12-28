@@ -10,5 +10,9 @@ class ParserEnvTest extends ParsingTest {
     val parser = ParserEnv("Number" -> NumberType)
     parser.getType("Number") should equal(Some(NumberType))
   }
+  it should "override expression with same types" in {
+    val parser = ParserEnv("Number" -> NumberExpr(3))
+    parser.+("Number" -> NumberExpr(4)) should equal(ParserEnv("Number" -> NumberExpr(4)))
+  }
 
 }
