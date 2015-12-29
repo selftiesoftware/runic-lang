@@ -179,15 +179,16 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
 
       case RefExpr(name, t) =>
         env.get(name).fold[Value](
-          Left(s"Failed to find function '$name'. Please check if it has been declared.")
-        )(x => Right(env -> x))
+          Left(s"Failed to find '$name' in scope. Please check if it has been declared.")
+        )(rest => Right(env -> rest))
 
-      case RefFieldExpr(name, field, t) =>
-        eval(name, env) match {
-          case m: Map[String, Any] => m.get(field).fold[Value](
-            Left(s"Cannot find field $field in object $name")
+      case RefFieldExpr(refExpr, field, t) =>
+        eval(refExpr, env) match {
+          case Right((_, m : Map[String, Any])) => m.get(field).fold[Value](
+            Left(s"Cannot find field '$field' in expression $refExpr")
           )(value => Right(env -> value))
-          case _ => Left(s"Could not find object of name $name")
+          case Right(unexpected) => Left(s"Expected object for reference $refExpr, but received $unexpected")
+          case Left(message) => Left(s"Could not find object to access $refExpr: $message")
         }
 
       case seq: BlockExpr =>

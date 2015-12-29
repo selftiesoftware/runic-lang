@@ -70,7 +70,7 @@ class ReferenceTest extends ParsingTest {
   }
   it should "store a function in a value and call the reference" in {
     parseStringAll("def f() = 10\ndef g = f\ng()").right.get.expr.asInstanceOf[BlockExpr].expr(2) should equal(
-      RefExpr("g", FunctionType(NumberType)))
+      RefExpr("g", FunctionType(FunctionExpr("f", Seq(), NumberExpr(10)))))
   }
 
 }

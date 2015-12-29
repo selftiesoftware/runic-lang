@@ -36,12 +36,14 @@ class ExprTest extends FlatSpec with MockFactory with Matchers {
   it should "construct an object" in {
     val t = ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType)
     val paramNames = t.params.map(_.name)
-    evaluator.eval(CallExpr("object", t, Seq(NumberExpr(12))), Map("object" -> paramNames)) should equal(Right(Map("object" -> paramNames), Map("a" -> 12)))
+    evaluator.eval(CallExpr("object", t, Seq(NumberExpr(12))), Map("object" -> paramNames)) should equal(
+      Right(Map("object" -> paramNames), Map("a" -> 12)))
   }
   it should "access an element in an object" in {
-    val obj = ObjectType("object", Seq(), AnyType)
+    val obj = ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType)
     val params = Map("a" -> 12)
-    evaluator.eval(RefFieldExpr(RefExpr("object", obj), "a", StringType), Map("object" -> params)) should equal(Right(Map("object" -> params), 12))
+    evaluator.eval(RefFieldExpr(RefExpr("object", obj), "a", StringType), Map("object" -> params)) should equal(
+      Right(Map("object" -> params), 12))
   }
 
   "A value evaluator" should "evaluate a boolean expression" in {
@@ -58,6 +60,14 @@ class ExprTest extends FlatSpec with MockFactory with Matchers {
   }
   it should "evaluate a unit expression" in {
     evaluator.eval(UnitExpr, emptyEnv) should equal(Right(Map() -> Unit))
+  }
+
+  "A reference evaluator" should "reference a definition" in {
+    val number = NumberExpr(3)
+    val definition = DefExpr("definition", RefExpr("number", NumberType))
+    val reference = RefExpr("definition", NumberType)
+    val env = Map("definition" -> definition, "number" -> number)
+    evaluator.eval(reference, env) should equal(Right(env, definition))
   }
 
 }
