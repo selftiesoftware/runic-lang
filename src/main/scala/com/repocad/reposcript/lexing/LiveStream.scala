@@ -108,6 +108,12 @@ object LiveStream {
     new LiveStream[C](source)
   }
 
+  def apply[T](elems : T*) : LiveStream[T] = {
+    val source = new LiveStreamSource[T]
+    source ++= elems
+    new LiveStream[T](source)
+  }
+
 }
 
 

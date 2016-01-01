@@ -26,7 +26,7 @@ trait Token extends Ordered[Token] {
   /**
   The class of this token.
     */
-  lazy val `class` = this.getClass().toString()
+  lazy val `class` = this.getClass.toString
 
   /**
   The tag of this token.

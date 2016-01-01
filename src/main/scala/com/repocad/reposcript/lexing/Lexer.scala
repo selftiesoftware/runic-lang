@@ -21,8 +21,8 @@ class Lexer extends NonblockingLexer[Char, Token] {
   private val int    = ("-"?) ~ ('0' thru '9').+
   private val double = ("-"?) ~ ('0' thru '9').+ ~ '.' ~ ('0' thru '9').+
   private val ws = oneOf(" \r\t").+ // whitespace
-  private val nl = oneOf("\n").+ // newline
-  private val com = "\\\\" ~ ((!oneOf("\r\n"))*) // single-line comment
+  private val newline = oneOf("\n") // newline
+  private val comment = "\\\\" ~ ((!oneOf("\r\n"))*) // single-line comment
   private val hashComment = "#" ~ ((!oneOf("\r\n"))*) // hashtag comments
 
   // States:
@@ -38,9 +38,8 @@ class Lexer extends NonblockingLexer[Char, Token] {
   MAIN switchesOn "\"" to { STRING(List()) }
 
   // Regular tokens
-  MAIN (com)   { }
+  MAIN (comment)   { }
   MAIN (hashComment)   { }
-  MAIN (",@")  { emit(PunctToken(",@")(position)) }
   MAIN (",")   { emit(PunctToken(",")(position)) }
   MAIN ("`")   { emit(PunctToken("`")(position)) }
   MAIN ("'")   { emit(PunctToken("'")(position)) }
@@ -53,8 +52,7 @@ class Lexer extends NonblockingLexer[Char, Token] {
   MAIN (".")   { emit(PunctToken(".")(position)) }
   MAIN (END)   { terminate() }
   MAIN (ws)    {  }
-  MAIN (nl)    { position = position.copy(lineNumber = position.lineNumber + 1) }
-  MAIN (ch)    over { chars => emit(CharToken(chars(2))(position)) }
+  MAIN (newline)    { incrementLine() }
   MAIN (int)   over { chars => emit(IntToken(Integer.parseInt(chars))(position)) }
   MAIN (double) over { chars => emit(DoubleToken(java.lang.Double.parseDouble(chars))(position))}
   MAIN (id)    over { chars => emit(SymbolToken(chars)(position)) }
@@ -66,10 +64,15 @@ class Lexer extends NonblockingLexer[Char, Token] {
   STRING ("\\\\")  = { (string : List[Char], chars : List[Char]) => STRING('\\' :: string) }
   STRING (AnyChar) = { (string : List[Char], chars : List[Char]) => STRING(chars.reverse ++ string) }
 
-  // #! ... !# comments
+  // /* ... */ comments
   MULTICOMMENT ("/*")    = { (n : Int, chars : List[Char]) => MULTICOMMENT(n+1) }
-  MULTICOMMENT (AnyChar)   { }
+  MULTICOMMENT (newline) { incrementLine() }
+  MULTICOMMENT (AnyChar) { }
   MULTICOMMENT ("*/")    = { case (1,chars) => MAIN case (n : Int, chars) => MULTICOMMENT(n - 1) }
+
+  def incrementLine(): Unit = {
+    position = position.copy(lineNumber = position.lineNumber + 1)
+  }
 
 }
 
