@@ -295,7 +295,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                   failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
                 }
               })
-            case _ => state.env.get (name) match {
+            case _ => state.env.get(name) match {
               case Some (expr) => success (state.copy(expr = RefExpr(name, expr.t), tokens = tail) )
               case _ => failure (Error.REFERENCE_NOT_FOUND(name)(state.position))
             }
@@ -362,8 +362,8 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
   }
 
   private def verifyType(typeName : String, state : ParserState) : Either[Error, AnyType] = {
-    state.env.getType(typeName) match {
-      case Some(typeObject) => Right(typeObject)
+    state.env.getAsType(typeName, AnyType) match {
+      case Some(typeObject) => Right(typeObject.t)
       case _ => Left(Error.TYPE_NOT_FOUND(typeName)(state.position))
     }
   }

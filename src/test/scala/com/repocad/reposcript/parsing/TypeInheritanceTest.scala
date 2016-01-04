@@ -14,11 +14,9 @@ class TypeInheritanceTest extends ParsingTest {
   it should "be a child of a higher type" in {
     case object DerivedType extends AnyType {
       val parent: AnyType = AnyType
-      val t: AnyType = this
     }
     case object DerivedSubType extends AnyType {
       val parent = DerivedType
-      val t = this
     }
     DerivedType.isChild(DerivedSubType) should equal(true)
   }

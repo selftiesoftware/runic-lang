@@ -35,6 +35,7 @@ case class NumberExpr(value : Double) extends ValueExpr[Double] { val t = Number
  * The type from where all data types in RepoScript inherit.
  */
 trait AnyType extends Expr {
+  val t = AnyType
   val parent : AnyType
 
   def findCommonParent(that : AnyType): AnyType = {
@@ -71,19 +72,15 @@ trait AnyType extends Expr {
 }
 
 case object AnyType extends AnyType {
-  val t = this
   val parent = AnyType
 }
 
-case object BooleanType extends AnyType { val t = this; val parent = AnyType }
-case object NumberType extends AnyType { val t = this; val parent = AnyType }
-case class ObjectType(name : String, params : Seq[RefExpr], parent : AnyType) extends AnyType {
-  val t = this
-}
-case object StringType extends AnyType { val t = this; val parent = AnyType }
-case object UnitType extends AnyType { val t = this; val parent = AnyType }
+case object BooleanType extends AnyType { val parent = AnyType }
+case object NumberType extends AnyType { val parent = AnyType }
+case class ObjectType(name : String, params : Seq[RefExpr], parent : AnyType) extends AnyType
+case object StringType extends AnyType { val parent = AnyType }
+case object UnitType extends AnyType { val parent = AnyType }
 
 case class FunctionType(name : String, params : Seq[RefExpr], returnType : AnyType) extends AnyType {
   val parent = AnyType
-  val t = this
 }
