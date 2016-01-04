@@ -6,13 +6,16 @@ import com.repocad.reposcript.lexing.Position
   * A parser environment that can store one or more expressions under a name (identifier). Each name can have 0 or more
   * (overloaded) expressions stored under that name. The type of the expression is used to identify overloaded values.
   * Because of the possibility to overload expressions, ``get`` operations from this environment risks to cause a
-  * runtime error, if more than one expression matches.
+  * [[Error]], if more than one expression matches the query.
   */
-case class ParserEnv(private val innerEnv : Map[String, Map[AnyType, Expr]]) {
+sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
 
   def +(kv : (String, Expr)) : ParserEnv = {
     val key = kv._1
-    val typ : AnyType = kv._2.t
+    val typ : AnyType = kv._2 match {
+      case anyType: AnyType => anyType
+      case _ => kv._2.t
+    }
     val value = kv._2
     val newOverloaded : Map[AnyType, Expr] = innerEnv.get(key) match {
       case None => Map(typ -> value)
@@ -38,7 +41,7 @@ case class ParserEnv(private val innerEnv : Map[String, Map[AnyType, Expr]]) {
 
   def getAll(key : String) : Iterable[Expr] = innerEnv.get(key).map(_.values).getOrElse(Iterable[Expr]())
 
-  def getAsType(key : String, typ : AnyType) : Either[Position => Error, Expr] = getAsType(key, typ.isChild(_))
+  def getAsType(key : String, typ : AnyType) : Either[Position => Error, Expr] = getAsType(key, t => typ.isChild(t))
   def getAsType(key : String, f : AnyType => Boolean): Either[Position => Error, Expr] =
     innerEnv.get(key) match {
       case None => Left(position => Error.TYPE_NOT_FOUND(key)(position))
@@ -72,6 +75,6 @@ object ParserEnv {
 
   val empty = new ParserEnv(Map())
 
-  def ofMap(map : Map[String, Expr]) : ParserEnv  = new ParserEnv(map.map(t => t._1 -> Map(t._2.t -> t._2)))
+  def ofMap(map : Map[String, Expr]) : ParserEnv  = empty.++(map)
 
 }

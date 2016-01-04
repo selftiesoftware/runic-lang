@@ -3,8 +3,7 @@ package com.repocad.reposcript.parsing
 class ParserEnvTest extends ParsingTest {
 
   "A parser environment" should "store an expression under a type" in {
-    val parser = new ParserEnv(Map("test" -> Map(AnyType -> NumberType)))
-    parser.getAsType("test", AnyType) should equal(Some(NumberType))
+    ParserEnv("test" -> NumberExpr(3)).toMap should equal(Map("test" -> Map(NumberType -> NumberExpr(3))))
   }
   it should "get all stored types" in {
     val parser = ParserEnv("Number" -> NumberType)
@@ -24,8 +23,12 @@ class ParserEnvTest extends ParsingTest {
   it should "get functions with different types" in {
     val function1 = FunctionType("f", Seq(), NumberType)
     val function2 = FunctionType("f", Seq(), UnitType)
-    val parser = ParserEnv(Map[String, Map[AnyType, Expr]]("f" -> Map(function1 -> function1, function2 -> function2)))
-    parser.getAsType("f", function2) should equal(Some(function2))
+    val parser = ParserEnv("f" -> function1, "f" -> function2)
+    parser.getAsType("f", function2) should equal(Right(function2))
+  }
+  it should "insert types as types and not expressions" in {
+    val typ = UnitType
+    ParserEnv("unit" -> typ).toMap should equal(Map("unit" -> Map(typ -> typ)))
   }
 
 }
