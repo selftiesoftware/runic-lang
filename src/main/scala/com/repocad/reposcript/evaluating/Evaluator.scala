@@ -37,7 +37,7 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
       case DefExpr(name, valExpr) =>
         eval(valExpr, env).fold(Left(_), value => Right(env.+(name -> value._2) -> value._2))
 
-      case FunctionExpr(name, params, body) =>
+      case FunctionType(name, params, body) =>
         val function = params.size match {
           case 0 => (funEnv : Env) => eval(body, funEnv).fold(l => l, r => r._2)
           case 1 => (funEnv : Env, a: Any) => {

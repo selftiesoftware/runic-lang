@@ -6,10 +6,10 @@ class ReferenceTest extends ParsingTest {
     parseString("a", ParserEnv("a" -> NumberExpr(1))).right.get.expr should equal(RefExpr("a", NumberType))
   }
   it should "reference an existing function" in {
-    parseString("f()", ParserEnv("f" -> FunctionExpr("f", Seq(), NumberExpr(1)))).right.get.expr should equal(CallExpr("f", NumberType, Seq()))
+    parseString("f()", ParserEnv("f" -> FunctionType("f", Seq(), NumberExpr(1)))).right.get.expr should equal(CallExpr("f", NumberType, Seq()))
   }
   it should "reference an existing function with one parameter" in {
-    parseString("f(2)", ParserEnv("f" -> FunctionExpr("f", Seq(RefExpr("a", NumberType)), NumberExpr(1)))).right.get.expr should equal(CallExpr("f", NumberType, Seq(NumberExpr(2))))
+    parseString("f(2)", ParserEnv("f" -> FunctionType("f", Seq(RefExpr("a", NumberType)), NumberExpr(1)))).right.get.expr should equal(CallExpr("f", NumberType, Seq(NumberExpr(2))))
   }
   it should "choose the correct type" in {
     parseStringAll("def H() = {} def h = 10 def x = 10 * h {}").isRight should equal (true)
@@ -27,7 +27,7 @@ class ReferenceTest extends ParsingTest {
   it should "infer a super type of a typed argument in a function" in {
     val env = ParserEnv("Number" -> NumberType)
     parseString("{ def a(b as Number) = 1 a(3) }", env) should equal(
-      Right(ParserState(BlockExpr(Seq(FunctionExpr("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)),
+      Right(ParserState(BlockExpr(Seq(FunctionType("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)),
         CallExpr("a", NumberType, Seq(NumberExpr(3))))), env))
     )
   }
@@ -56,14 +56,14 @@ class ReferenceTest extends ParsingTest {
   }
   it should "not parse a reference as a function call in a parameter list" in {
     val env = ParserEnv("a" -> NumberExpr(10),
-      "f" -> FunctionExpr("f", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), NumberType),
-      "+" -> FunctionExpr("+", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType))
+      "f" -> FunctionType("f", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), NumberType),
+      "+" -> FunctionType("+", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType))
     parseString("f(a (10 + 10))", env).right.get.expr should equal(
       CallExpr("f", NumberType, Seq(RefExpr("a", NumberType), BlockExpr(Seq(CallExpr("+", NumberType, Seq(NumberExpr(10), NumberExpr(10))))))))
   }
   it should "parse two functions as a part of the other" in {
-    val env = ParserEnv("+" -> FunctionExpr("+", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType),
-                        "cos" -> FunctionExpr("+", Seq(RefExpr("a", NumberType)), NumberType))
+    val env = ParserEnv("+" -> FunctionType("+", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType),
+                        "cos" -> FunctionType("+", Seq(RefExpr("a", NumberType)), NumberType))
     parseString("cos(1) + 2", env).right.get.expr should equal(
       CallExpr("+", NumberType, Seq(CallExpr("cos", NumberType, Seq(NumberExpr(1))), NumberExpr(2)))
     )

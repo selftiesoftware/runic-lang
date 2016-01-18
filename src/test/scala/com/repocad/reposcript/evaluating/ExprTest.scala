@@ -25,7 +25,7 @@ class ExprTest extends FlatSpec with MockFactory with Matchers {
   }
   it should "evaluate a function expression" in {
     val fun = (env : Env, a : Int) => a
-    val output = evaluator.eval(FunctionExpr("f", Seq(RefExpr("a", NumberType)), RefExpr("a", NumberType)), emptyEnv).right.get
+    val output = evaluator.eval(FunctionType("f", Seq(RefExpr("a", NumberType)), RefExpr("a", NumberType)), emptyEnv).right.get
     output._1.get("f") should equal(Some(output._2))
     output._2.asInstanceOf[Function2[Env, Int, Int]](emptyEnv, 2) should equal (2)
   }

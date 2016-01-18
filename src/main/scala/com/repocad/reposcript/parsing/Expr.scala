@@ -14,9 +14,6 @@ trait Expr {
 case class BlockExpr(expr: Seq[Expr]) extends Expr { val t = if (expr.isEmpty) UnitType else expr.last.t }
 case class CallExpr(name: String, t : AnyType, params: Seq[Expr]) extends Expr
 case class DefExpr(name: String, value : Expr) extends Expr { val t = value.t }
-case class FunctionExpr(name : String, params : Seq[RefExpr], body : Expr) extends Expr {
-  val t = FunctionType(name, params, body.t)
-}
 case class RefExpr(name: String, t : AnyType) extends Expr
 case class RefFieldExpr(ref : Expr, field : String, t : AnyType) extends Expr
 case object UnitExpr extends Expr { val t = UnitType }
@@ -81,6 +78,7 @@ case class ObjectType(name : String, params : Seq[RefExpr], parent : AnyType) ex
 case object StringType extends AnyType { val parent = AnyType }
 case object UnitType extends AnyType { val parent = AnyType }
 
-case class FunctionType(name : String, params : Seq[RefExpr], returnType : AnyType) extends AnyType {
+case class FunctionType(name : String, params : Seq[RefExpr], body : Expr) extends AnyType {
   val parent = AnyType
+  def returnType : AnyType = body.t
 }

@@ -42,7 +42,7 @@ sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
   def getAll(key : String) : Iterable[Expr] = innerEnv.get(key).map(_.values).getOrElse(Iterable[Expr]())
 
   def getAsType(key : String, typ : AnyType) : Either[Position => Error, Expr] = getAsType(key, t => typ.isChild(t))
-  def getAsType(key : String, f : AnyType => Boolean): Either[Position => Error, Expr] =
+  def getAsType(key : String, f : AnyType => Boolean): Either[Position => Error, Expr] = {
     innerEnv.get(key) match {
       case None => Left(position => Error.TYPE_NOT_FOUND(key)(position))
       case Some(map) =>
@@ -53,6 +53,7 @@ sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
           case n => Left(position => Error.AMBIGUOUS_TYPES(key, matches)(position))
         }
     }
+  }
 
   def -(key : String, typ : AnyType) : ParserEnv = {
     val newInner : Map[String, Map[AnyType, Expr]] = innerEnv.get(key).map(_.filter(t => !typ.isChild(t._1))) match {
