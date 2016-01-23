@@ -30,5 +30,23 @@ class ParserEnvTest extends ParsingTest {
     val typ = UnitType
     ParserEnv("unit" -> typ).toMap should equal(Map("unit" -> Map(typ -> typ)))
   }
+  it should "concatenate two environments from left to right" in {
+    val env1 = ParserEnv()
+    val env2 = ParserEnv("b" -> NumberExpr(10))
+    (env1 ++ env2) should equal(env2)
+  }
+  it should "concatenate two environments from right to left" in {
+    val env1 = ParserEnv("b" -> NumberExpr(10))
+    val env2 = ParserEnv()
+    (env1 ++ env2) should equal(env1)
+  }
+  it should "return an expression in a get operation" in {
+    val env = ParserEnv("a" -> NumberExpr(21))
+    env.get("a") should equal(Right(NumberExpr(21)))
+  }
+  it should "return the referred expression in a reference" in {
+    val env = ParserEnv("a" -> NumberExpr(3), "r" -> RefExpr("a", NumberType))
+    env.get("r") should equal(Right(RefExpr("a", NumberType)))
+  }
 
 }

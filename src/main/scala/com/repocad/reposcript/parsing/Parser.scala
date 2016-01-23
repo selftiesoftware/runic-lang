@@ -82,19 +82,20 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
             case x => failure(Error.EXPECTED_PARAMETERS(state.expr.toString)(parameterState.position))
           }, failure)
         }
-
         state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
           case Right(function: FunctionType) =>
             parseCall(function.params, function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
-          case _ => // Some(RefExpr) could be returned, so None does not cover this case entirely
+          case Right(ref : RefExpr) =>
+            ref.t match {
+              case function : FunctionType => parseCall(function.params, function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
+              case notFunction => failure(Error.TYPE_MISMATCH("function", notFunction.toString, "calling " + name)(state.position))
+            }
+          case x => // Some(RefExpr) could be returned, so None does not cover this case entirely
             state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
               case Right(o: ObjectType) =>
                 parseCall(o.params, o, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
-              case Left(x) =>
-                state.env.get(name) match {
-                case Right(expr) => success(ParserState(RefExpr(name, expr.t), state.env, state.tokens.tail))
-                case _ => failure(Error.FUNCTION_NOT_FOUND(name)(state.position))
-              }
+              case Left(x) => // Assume regular reference
+                parseReference(name, tail, state, success, failure)
             }
         }
 
@@ -107,12 +108,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       case StringToken(value : String) :~: tail => success(ParserState(StringExpr(value), state.env, tail))
 
       // References to values, functions or objects
-      case SymbolToken(name) :~: tail =>
-        state.env.get(name) match {
-          case Right(typeExpr : AnyType) => success(ParserState(RefExpr(name, typeExpr), state.env, tail))
-          case Right(expr) => success(ParserState(RefExpr(name, expr.t), state.env, tail))
-          case Left(errorFunction) => failure(errorFunction(state.position))
-        }
+      case SymbolToken(name) :~: tail => parseReference(name, tail, state, success, failure)
 
       case rest if rest.isEmpty => success(state.copy(UnitExpr, tokens = rest))
 
@@ -263,6 +259,14 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     }
   }
 
+  private def parseReference(name : String, tail : LiveStream[Token], state : ParserState, success: SuccessCont, failure: FailureCont) : Value = {
+    state.env.get(name) match {
+      case Right(typeExpr : AnyType) => success(ParserState(RefExpr(name, typeExpr), state.env, tail))
+      case Right(expr) => success(ParserState(RefExpr(name, expr.t), state.env, tail))
+      case Left(errorFunction) => failure(errorFunction(state.position))
+    }
+  }
+
   private def parseSuffix(state : ParserState, success : SuccessCont, failure : FailureCont) : Value = {
     state.tokens match {
 
@@ -301,10 +305,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
                     failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
                   }
                 })
-              case _ => state.env.get(name) match {
-                case Right(expr) => success (state.copy(expr = RefExpr(name, expr.t), tokens = tail) )
-                case Left(errorFunction) => Left(errorFunction(state.position))
-              }
+              case _ => success(state)
             }
 
           case _ => success(state)

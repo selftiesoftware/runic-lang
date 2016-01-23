@@ -30,9 +30,9 @@ sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
 
   def ++(thatEnv : ParserEnv) : ParserEnv = {
     thatEnv.toMap.foldLeft(this)((thisEnv, thatEntry) => {
-      thisEnv.getAll(thatEntry._1).foldLeft(thisEnv)(
-        (thatEnv : ParserEnv, thatExpr : Expr) => thatEnv.+(thatEntry._1 -> thatExpr))
-    })
+      thatEnv.getAll(thatEntry._1).foldLeft(thisEnv)((thatEnv : ParserEnv, thatExpr : Expr) =>
+        thatEnv.+(thatEntry._1 -> thatExpr)
+      )})
   }
 
   def contains(name: String) = innerEnv.get(name).exists(_.nonEmpty)
@@ -49,7 +49,7 @@ sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
         val matches = map.filter(t => f(t._1))
         matches.size match {
           case 0 => Left(position => Error.TYPE_NOT_FOUND(key)(position))
-          case 1 => Right(matches.head._1)
+          case 1 => Right(matches.head._2)
           case n => Left(position => Error.AMBIGUOUS_TYPES(key, matches)(position))
         }
     }

@@ -69,5 +69,9 @@ class ExprTest extends FlatSpec with MockFactory with Matchers {
     val env = Map("definition" -> definition, "number" -> number)
     evaluator.eval(reference, env) should equal(Right(env, definition))
   }
+  it should "call a function through a reference" in {
+    val f = FunctionType("f", Seq(), NumberExpr(3))
+    val r = RefExpr("f", f)
+  }
 
 }
