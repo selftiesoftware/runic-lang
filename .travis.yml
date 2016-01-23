@@ -1,0 +1,6 @@
+language: scala
+
+script:
+  # Remove scalajs dependency to allow tests
+  - sed -i 2d build.sbt
+  - sbt test
