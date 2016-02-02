@@ -6,7 +6,7 @@ import com.repocad.reposcript.{HttpClient, RemoteCache}
 /**
  * Parses code into drawing expressions (AST)
  */
-class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
+class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) extends BlockParser with DefinitionParser {
 
   val remoteCache = new RemoteCache(httpClient)
 
@@ -116,103 +116,6 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     }
   }
 
-  private def parseDefinition(outerState : ParserState, success : SuccessCont, failure : FailureCont) : Value = {
-    def parseFunctionParameters(parameterTokens : LiveStream[Token],
-                                success : (Seq[RefExpr], LiveStream[Token]) => Value, failure : FailureCont) = {
-      parseUntil(parseParameters, _.head.tag.toString == ")", ParserState(UnitExpr, outerState.env, parameterTokens),
-        parametersState => { parametersState.expr match {
-          case BlockExpr(exprs) if exprs.contains((e : Expr) => !e.isInstanceOf[RefExpr]) =>
-            failure(Error.EXPECTED_PARAMETERS(parameterTokens.toString)(parametersState.position))
-          case BlockExpr(exprs) =>
-            success(exprs.asInstanceOf[Seq[RefExpr]], parametersState.tokens)
-          case unknown => failure(Error.EXPECTED_PARAMETERS(unknown.toString)(parametersState.position))
-        }
-      }, failure)
-    }
-
-    def parseFunctionParametersAndBody(innerState : ParserState, success : (Seq[RefExpr], Expr,
-                                       LiveStream[Token]) => Value, failure : FailureCont) : Value = {
-      parseFunctionParameters(innerState.tokens, (parameters, parameterTokens) => {
-        parameterTokens match {
-          case SymbolToken("=") :~: functionTail =>
-            parseFunctionBody(innerState.copy(env = innerState.env, tokens = functionTail), parameters,
-              bodyState => success(parameters, bodyState.expr, bodyState.tokens), failure)
-          case tail => failure(Error.SYNTAX_ERROR("=", tail.toString)(innerState.position))
-        }
-      }, failure)
-    }
-
-    def parseFunctionBody(parametersState : ParserState, paramsEnv : Seq[RefExpr], success : SuccessCont,
-                          failureCont: FailureCont) : Value = {
-      parse(ParserState(UnitExpr, outerState.env ++ paramsEnv.map(ref => ref.name -> ref).toMap, parametersState.tokens),
-        success, failure)
-    }
-
-    outerState.tokens match {
-      /* Functions or objects */
-        /* Prepended function */
-      case PunctToken("(") :~: tail => parseFunctionParameters(tail, (firstParams, firstTail) => {
-        firstTail match {
-          case SymbolToken(name) :~: PunctToken("(") :~: functionTail =>
-            parseFunctionParametersAndBody(outerState.copy(tokens = functionTail), (secondParams, body, bodyTail) => {
-              val parameters = firstParams ++ secondParams
-              val function = FunctionType(name, parameters, body)
-              success(ParserState(function, outerState.env.+(name -> function), bodyTail))
-            }, failure)
-
-          case SymbolToken(name) :~: SymbolToken("=") :~: functionTail =>
-            parseFunctionBody(outerState.copy(tokens = functionTail), firstParams, bodyState => {
-              val function = FunctionType(name, firstParams, bodyState.expr)
-              success(ParserState(function, outerState.env.+(name -> function), bodyState.tokens))
-            }, failure)
-        }
-      }, failure)
-
-        /* Function and object definition */
-      case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        parseFunctionParameters(tail, (parameters, paramsTail) => {
-          paramsTail match {
-            case SymbolToken("=") :~: bodyTokens =>
-              parseFunctionBody(outerState.copy(tokens = bodyTokens), parameters, bodyState => {
-                val function = FunctionType(name, parameters, bodyState.expr)
-                success(ParserState(function, outerState.env.+(name -> function), bodyState.tokens))
-              }, failure)
-
-            case SymbolToken("{") :~: _ => failure(Error.SYNTAX_ERROR("=", "}")(paramsTail.head.position))
-
-              // Extend objects
-            //case SymbolToken("as")
-
-            case objectTail =>
-              val objectExpr = ObjectType(name, parameters, AnyType)
-              success(ParserState(objectExpr, outerState.env + (name -> objectExpr), objectTail))
-          }
-        }, failure)
-
-
-      /* Assignments */
-      case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: SymbolToken("=") :~: tail =>
-        verifyTypeExists(typeName, outerState).right.flatMap(parentType =>
-          parse(outerState.copy(tokens = tail), assignmentState => {
-            val assignmentExpr = assignmentState.expr
-            parentType.isChild(assignmentExpr.t) match {
-              case true => success(ParserState(DefExpr(name, assignmentExpr),
-                assignmentState.env + (name -> assignmentExpr), assignmentState.tokens))
-              case false => failure(Error.ASSIGNMENT_TYPE_MISMATCH(name, parentType, assignmentExpr)(assignmentState.position))
-            }
-          }, failure)
-        )
-
-      case SymbolToken(name) :~: SymbolToken("=") :~: tail =>
-        parse(outerState.copy(tokens = tail), assignmentState => {
-          val assignmentExpr = assignmentState.expr
-          success(ParserState(DefExpr(name, assignmentExpr),
-            assignmentState.env + (name -> assignmentExpr), assignmentState.tokens))
-        }, failure)
-          //success(DefExpr(name, e), env + (name -> e), stream), failure)
-
-    }
-  }
 
   private def parseLoop(state : ParserState, success: SuccessCont, failure: FailureCont) : Value = {
     def parseLoopWithRange(counterName : String, from : Expr, to : Expr, bodyTokens : LiveStream[Token], success: SuccessCont, failure: FailureCont) : Value = {
@@ -241,22 +144,6 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       case SymbolToken("using") :~: usingTail => parseLoopWithCounterName(NumberExpr(1), firstState.expr, usingTail)
       case _ => parseLoopWithRange(DEFAULT_LOOP_COUNTER, NumberExpr(1), firstState.expr, firstState.tokens, success, failure)
     }, failure)
-  }
-
-  private def parseParameters(state : ParserState, success : SuccessCont, failure : FailureCont) : Value = {
-    state.tokens match {
-      case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail =>
-        state.env.getAsType(typeName, AnyType) match {
-          case Right(typeExpr : AnyType) =>
-            val reference = RefExpr(name, typeExpr)
-            success(ParserState(reference, state.env.+(name -> reference), tail))
-          case Right(expr) =>
-            val reference = RefExpr(name, expr.t)
-            success(ParserState(reference, state.env.+(name -> reference), tail))
-          case Left(error) => failure(error.apply(state.position))
-        }
-      case SymbolToken(name) :~: tail => failure(Error.EXPECTED_TYPE_PARAMETERS(name)(state.position))
-    }
   }
 
   private def parseReference(name : String, tail : LiveStream[Token], state : ParserState, success: SuccessCont, failure: FailureCont) : Value = {
@@ -315,47 +202,6 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
     }
   }
 
-  private def parseUntil(token : String, state : ParserState,
-                         success : SuccessCont, failure: FailureCont): Value = {
-    parseUntil(parse, stream => stream.head.tag.toString.equals(token), state, success, failure)
-  }
-
-  private def parseUntil(parseCallback : (ParserState, SuccessCont, FailureCont) => Value,
-                         condition : LiveStream[Token] => Boolean, beginningState : ParserState,
-                         success : SuccessCont, failure : FailureCont, spillEnvironment : Boolean = false): Value = {
-    var stateVar = beginningState
-    var seqExpr : Seq[Expr] = Seq()
-    var seqFail : Option[Error] = None
-    def seqSuccess: SuccessCont = state => {
-      stateVar = state
-      Right(stateVar)
-    }
-    def seqFailure: FailureCont = (s) => {
-      seqFail = Some(s)
-      Left(s)
-    }
-    while (seqFail.isEmpty && !stateVar.tokens.isPlugged && !condition(stateVar.tokens)) {
-      parseCallback(stateVar, seqSuccess, seqFailure) match {
-        case Left(s) => seqFail = Some(s)
-        case Right(newState) =>
-          if (newState.expr != UnitExpr) {
-            seqExpr :+= newState.expr
-          }
-          stateVar = newState
-      }
-    }
-    if (!stateVar.tokens.isPlugged && condition(stateVar.tokens) ) {
-      stateVar = stateVar.copy(tokens = stateVar.tokens.tail)
-    }
-    seqFail.map(seqFailure).getOrElse(
-      if (spillEnvironment) {
-        success(stateVar.copy(expr = BlockExpr(seqExpr)))
-      } else {
-        success(stateVar.copy(expr = BlockExpr(seqExpr), env = beginningState.env))
-      }
-    )
-  }
-
   private def verifySameParams(parameters : Seq[RefExpr], callParameters : Seq[Expr]) : Boolean = {
     if (parameters.size != callParameters.size) {
       return false
@@ -367,14 +213,6 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) {
       }
     }
     true
-  }
-
-  private def verifyTypeExists(typeName : String, state : ParserState) : Either[Error, AnyType] = {
-    state.env.get(typeName) match {
-      case Right(anyType : AnyType) => Right(anyType)
-      case Right(other) => Left(Error.TYPE_NOT_FOUND(typeName)(state.position))
-      case Left(errorFunction) => Left(errorFunction.apply(state.position))
-    }
   }
 
 }
