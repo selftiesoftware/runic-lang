@@ -8,38 +8,20 @@ import com.repocad.reposcript.lexing._
 trait DefinitionParser extends TypedParser with ParserInterface with BlockParser {
 
   def parseDefinition(outerState : ParserState, success : SuccessCont, failure : FailureCont) : Value = {
-    def parseFunctionParametersAndBody(innerState : ParserState, success : (Seq[RefExpr], Expr,
-      LiveStream[Token]) => Value, failure : FailureCont) : Value = {
-      parseFunctionParameters(innerState.tokens, outerState, (parameters, parameterTokens) => {
-        parameterTokens match {
-          case SymbolToken("=") :~: functionTail =>
-            parseFunctionBody(innerState.copy(env = innerState.env, tokens = functionTail), parameters,
-              bodyState => success(parameters, bodyState.expr, bodyState.tokens), failure)
-          case tail => failure(Error.SYNTAX_ERROR("=", tail.toString)(innerState.position))
-        }
-      }, failure)
-    }
-
-    def parseFunctionBody(parametersState : ParserState, paramsEnv : Seq[RefExpr], success : SuccessCont,
-                          failureCont: FailureCont) : Value = {
-      parse(ParserState(UnitExpr, outerState.env ++ paramsEnv.map(ref => ref.name -> ref).toMap, parametersState.tokens),
-        success, failure)
-    }
-
     outerState.tokens match {
       /* Functions or objects */
       /* Prepended function */
-      case PunctToken("(") :~: tail => parseFunctionParameters(tail, outerState, (firstParams, firstTail) => {
+      case PunctToken("(") :~: tail => parseFunctionParameters(tail, outerState.env, (firstParams, firstTail) => {
         firstTail match {
           case SymbolToken(name) :~: PunctToken("(") :~: functionTail =>
-            parseFunctionParametersAndBody(outerState.copy(tokens = functionTail), (secondParams, body, bodyTail) => {
+            parseFunctionParametersAndBody(outerState.copy(tokens = functionTail), outerState.env, (secondParams, body, bodyTail) => {
               val parameters = firstParams ++ secondParams
               val function = FunctionType(name, parameters, body)
               success(ParserState(function, outerState.env.+(name -> function), bodyTail))
             }, failure)
 
           case SymbolToken(name) :~: SymbolToken("=") :~: functionTail =>
-            parseFunctionBody(outerState.copy(tokens = functionTail), firstParams, bodyState => {
+            parseFunctionBody(functionTail, outerState.env, firstParams, bodyState => {
               val function = FunctionType(name, firstParams, bodyState.expr)
               success(ParserState(function, outerState.env.+(name -> function), bodyState.tokens))
             }, failure)
@@ -48,10 +30,10 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
 
       /* Function and object definition */
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        parseFunctionParameters(tail, outerState, (parameters, paramsTail) => {
+        parseFunctionParameters(tail, outerState.env, (parameters, paramsTail) => {
           paramsTail match {
             case SymbolToken("=") :~: bodyTokens =>
-              parseFunctionBody(outerState.copy(tokens = bodyTokens), parameters, bodyState => {
+              parseFunctionBody(bodyTokens, outerState.env, parameters, bodyState => {
                 val function = FunctionType(name, parameters, bodyState.expr)
                 success(ParserState(function, outerState.env.+(name -> function), bodyState.tokens))
               }, failure)
@@ -92,9 +74,27 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
     }
   }
 
-  def parseFunctionParameters(parameterTokens : LiveStream[Token], outerState : ParserState,
+  def parseFunctionBody(bodyTokens : LiveStream[Token], bodyEnvironment : ParserEnv, paramsEnv : Seq[RefExpr], success : SuccessCont,
+                        failure: FailureCont) : Value = {
+    parse(ParserState(UnitExpr, bodyEnvironment ++ paramsEnv.map(ref => ref.name -> ref).toMap, bodyTokens),
+      success, failure)
+  }
+
+  def parseFunctionParametersAndBody(innerState : ParserState, outerEnv : ParserEnv, success : (Seq[RefExpr], Expr,
+    LiveStream[Token]) => Value, failure : FailureCont) : Value = {
+    parseFunctionParameters(innerState.tokens, outerEnv, (parameters, parameterTokens) => {
+      parameterTokens match {
+        case SymbolToken("=") :~: functionTail =>
+          parseFunctionBody(functionTail, outerEnv, parameters,
+            bodyState => success(parameters, bodyState.expr, bodyState.tokens), failure)
+        case tail => failure(Error.SYNTAX_ERROR("=", tail.toString)(innerState.position))
+      }
+    }, failure)
+  }
+
+  def parseFunctionParameters(parameterTokens : LiveStream[Token], outerEnv : ParserEnv,
                               success : (Seq[RefExpr], LiveStream[Token]) => Value, failure : FailureCont) : Value = {
-    parseUntil(parseParameters, _.head.tag.toString == ")", ParserState(UnitExpr, outerState.env, parameterTokens),
+    parseUntil(parseParameters, _.head.tag.toString == ")", ParserState(UnitExpr, outerEnv, parameterTokens),
       parametersState => { parametersState.expr match {
         case BlockExpr(exprs) if exprs.contains((e : Expr) => !e.isInstanceOf[RefExpr]) =>
           failure(Error.EXPECTED_PARAMETERS(parameterTokens.toString)(parametersState.position))
