@@ -18,18 +18,18 @@ class ReferenceTest extends ParsingTest {
     parseString("f(2 3)", ParserEnv("f" -> f)).right.get.expr should equal(CallExpr("f", NumberType, Seq(NumberExpr(2), NumberExpr(3))))
   }
   it should "choose the correct type" in {
-    parseStringAll("def H() = {} def h = 10 def x = 10 * h {}").isRight should equal (true)
+    parseStringAll("def H() = {} def h = 10 def x = 10 * h {}").isRight should equal(true)
   }
   //   TODO: Better error reportings for function and object calls
-//  it should "fail to reference an existing function with different number of parameters" in {
-//    parseString("f()", ParserEnv("f" -> FunctionExpr("f", Seq(RefExpr("a", NumberType)), NumberExpr(1)))) should equal(Left(Error.EXPECTED_PARAMETER_NUMBER("f", 1, 0)))
-//  }
-//  it should "fail when referencing non-existing parameters in the function body" in {
-//    parseString("def a(b as Number) = c") should equal(Left(Error.REFERENCE_NOT_FOUND("c")))
-//  }
-//  it should "fail when giving a wrongly typed argument to a function" in {
-//    parseString("{ def a(b as Number) = b a(\"hi\") }") should equal(Left(Error.TYPE_MISMATCH("NumberType", "StringType", "calling 'a'")))
-//  }
+  //  it should "fail to reference an existing function with different number of parameters" in {
+  //    parseString("f()", ParserEnv("f" -> FunctionExpr("f", Seq(RefExpr("a", NumberType)), NumberExpr(1)))) should equal(Left(Error.EXPECTED_PARAMETER_NUMBER("f", 1, 0)))
+  //  }
+  //  it should "fail when referencing non-existing parameters in the function body" in {
+  //    parseString("def a(b as Number) = c") should equal(Left(Error.REFERENCE_NOT_FOUND("c")))
+  //  }
+  //  it should "fail when giving a wrongly typed argument to a function" in {
+  //    parseString("{ def a(b as Number) = b a(\"hi\") }") should equal(Left(Error.TYPE_MISMATCH("NumberType", "StringType", "calling 'a'")))
+  //  }
   it should "infer a super type of a typed argument in a function" in {
     val env = ParserEnv("Number" -> NumberType)
     parseString("{ def a(b as Number) = 1 a(3) }", env) should equal(
@@ -69,7 +69,7 @@ class ReferenceTest extends ParsingTest {
   }
   it should "parse two functions as a part of the other" in {
     val env = ParserEnv("+" -> FunctionType("+", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), RefExpr("a", NumberType)),
-                        "cos" -> FunctionType("+", Seq(RefExpr("a", NumberType)), RefExpr("a", NumberType)))
+      "cos" -> FunctionType("+", Seq(RefExpr("a", NumberType)), RefExpr("a", NumberType)))
     parseString("cos(1) + 2", env).right.get.expr should equal(
       CallExpr("+", NumberType, Seq(CallExpr("cos", NumberType, Seq(NumberExpr(1))), NumberExpr(2)))
     )

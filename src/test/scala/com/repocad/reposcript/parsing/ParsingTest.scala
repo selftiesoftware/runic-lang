@@ -9,29 +9,29 @@ trait ParsingTest extends FlatSpec with Matchers with MockFactory with BeforeAnd
 
   val emptyEnv = Environment.parserEnv
   val mockClient = mock[HttpClient]
-  var parser : Parser = null
+  var parser: Parser = null
 
   before {
     parser = new Parser(mockClient, emptyEnv)
   }
 
-  def testEqualsAll(expected : Seq[Expr], expression : String) = {
+  def testEqualsAll(expected: Seq[Expr], expression: String) = {
     parseStringAll(expression).right.map(_.expr) should equal(Right(BlockExpr(expected)))
   }
 
-  def testEquals(expected : Expr, expression : String, env: ParserEnv = emptyEnv) : Unit = {
+  def testEquals(expected: Expr, expression: String, env: ParserEnv = emptyEnv): Unit = {
     parser = new Parser(mockClient, env)
     val either = parseString(expression, env).right.map(_.expr)
     either should equal(Right(expected))
   }
 
-  def parseString(string : String, env: ParserEnv = emptyEnv) : Value = {
+  def parseString(string: String, env: ParserEnv = emptyEnv): Value[ExprState] = {
     parser = new Parser(mockClient, env)
     val stream = Lexer.lex(string)
-    parser.parse(ParserState(UnitExpr, env, stream), state => Right(state), f => Left(f))
+    parser.parse(ExprState(UnitExpr, env, stream), state => Right(state), f => Left(f))
   }
 
-  def parseStringAll(string : String, env : ParserEnv = emptyEnv, spillEnvironment : Boolean = false) = {
+  def parseStringAll(string: String, env: ParserEnv = emptyEnv, spillEnvironment: Boolean = false) = {
     parser = new Parser(mockClient, env)
     val stream = Lexer.lex(string)
     parser.parse(stream, spillEnvironment = spillEnvironment)

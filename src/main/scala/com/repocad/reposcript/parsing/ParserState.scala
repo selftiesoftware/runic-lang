@@ -40,6 +40,7 @@ abstract class ParserState {
   */
 case class BlockState(block: BlockExpr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState
 
+
 /**
   * A state in the parsing where [[Token]]s are evaluated to a definition.
   *

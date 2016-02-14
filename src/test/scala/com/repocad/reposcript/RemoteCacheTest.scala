@@ -1,6 +1,6 @@
 package com.repocad.reposcript
 
-import com.repocad.reposcript.lexing.{Position, Lexer, LiveStream, Token}
+import com.repocad.reposcript.lexing.{Lexer, LiveStream, Position, Token}
 import com.repocad.reposcript.parsing._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -10,8 +10,8 @@ class RemoteCacheTest extends FlatSpec with Matchers with MockFactory with Befor
   class NoArgParser extends Parser(mockClient, ParserEnv())
 
   val mockClient = mock[HttpClient]
-  val mockParser : Parser = mock[NoArgParser]
-  var cache : RemoteCache = null
+  val mockParser: Parser = mock[NoArgParser]
+  var cache: RemoteCache = null
 
   before {
     cache = new RemoteCache(mockClient)
@@ -26,10 +26,10 @@ class RemoteCacheTest extends FlatSpec with Matchers with MockFactory with Befor
     cache.contains("test") should equal(false)
   }
   it should "cache remote scripts" in {
-    val result : Value = Right(ParserState(NumberExpr(10), ParserEnv(), LiveStream(Iterable[Token]())))
+    val result: Value[ExprState] = Right(ExprState(NumberExpr(10), ParserEnv(), LiveStream(Iterable[Token]())))
 
     (mockClient.getSynchronous _).expects("get/test").returning(Response(0, 4, "10")).once()
-    (mockParser.parse(_ : LiveStream[Token], _ : Boolean)).expects(Lexer.lex("10"), true).returning(result).once()
+    (mockParser.parse(_: LiveStream[Token], _: Boolean)).expects(Lexer.lex("10"), true).returning(result).once()
 
     cache.get("test", Position.start, text => mockParser.parse(Lexer.lex(text), true)).right.get.expr should equal(NumberExpr(10))
     cache.get("test", Position.start, text => mockParser.parse(Lexer.lex(text), true)).right.get.expr should equal(NumberExpr(10))

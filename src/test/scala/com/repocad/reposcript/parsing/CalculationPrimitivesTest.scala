@@ -4,7 +4,7 @@ import com.repocad.reposcript.Environment
 
 class CalculationPrimitivesTest extends ParsingTest {
 
-  def testCallExpr(input : String, a : Int, b : Int, op : String, typ : AnyType) = {
+  def testCallExpr(input: String, a: Int, b: Int, op: String, typ: AnyType) = {
     parseString(input, Environment.parserEnv).right.get.expr should equal(CallExpr(op, typ, Seq(NumberExpr(a), NumberExpr(b))))
   }
 

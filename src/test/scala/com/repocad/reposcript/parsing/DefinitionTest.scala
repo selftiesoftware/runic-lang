@@ -1,6 +1,6 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.lexing.{Position, LiveStream, Token, LiveNil}
+import com.repocad.reposcript.lexing.Position
 
 class DefinitionTest extends ParsingTest {
 
@@ -15,11 +15,11 @@ class DefinitionTest extends ParsingTest {
     testEquals(DefExpr("a", NumberExpr(10)), "def a as Number = 10")
   }
   it should "store a value in the value environment" in {
-    parseString("def a = 10", ParserEnv()).right.get.env should equal (ParserEnv("a" -> NumberExpr(10)))
+    parseString("def a = 10", ParserEnv()).right.get.env should equal(ParserEnv("a" -> NumberExpr(10)))
   }
   it should "fail when wrong type is specified" in {
     println(parseString("def a as Unit = 1"))
-    parseString("def a as Unit = 1").isLeft should equal (true)
+    parseString("def a as Unit = 1").isLeft should equal(true)
   }
   it should "recognise future expressions as part of the definition" in {
     parseString("def a = 10 * 20").right.get.expr should equal(DefExpr("a", CallExpr("*", NumberType, Seq(NumberExpr(10), NumberExpr(20)))))
@@ -54,7 +54,7 @@ class DefinitionTest extends ParsingTest {
   }
   it should "store a function in the value environment" in {
     val function = FunctionType("a", Seq(), UnitExpr)
-    parseString("def a() = ", ParserEnv()).right.get.env should equal (ParserEnv("a" -> function))
+    parseString("def a() = ", ParserEnv()).right.get.env should equal(ParserEnv("a" -> function))
   }
   it should "accept references to existing parameters in the function body" in {
     val function = FunctionType("a", Seq(RefExpr("b", NumberType)), RefExpr("b", NumberType))
@@ -128,7 +128,7 @@ class DefinitionTest extends ParsingTest {
     parseString("def o2(o as o1)", ParserEnv("o1" -> o1)).right.get.expr should equal(ObjectType("o2", Seq(RefExpr("o", o1)), AnyType))
   }
   it should "define an object recursively" in {
-    def o : ObjectType = ObjectType("o", Seq(RefExpr("a", o)), AnyType)
+    def o: ObjectType = ObjectType("o", Seq(RefExpr("a", o)), AnyType)
     parseString("def o(a as o)").right.get.expr should equal(o)
   }
 

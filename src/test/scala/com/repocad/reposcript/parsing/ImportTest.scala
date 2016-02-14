@@ -1,6 +1,6 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.{Response, RemoteCache, HttpClient}
+import com.repocad.reposcript.Response
 
 class ImportTest extends ParsingTest {
 
