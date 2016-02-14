@@ -32,7 +32,12 @@ trait BlockParser {
   def parseUntilToken[T <: ParserState](state: T, token: String, accumulate: (T, T) => T,
                                         parseFunction: ParserFunction[T], success: SuccessCont[T],
                                         failure: FailureCont[T]): Value[T] = {
-    parseUntil[T](state, _.tokens.head.tag.toString == token, accumulate, parseFunction, success, failure)
+    def stripToken(string: String): String = string match {
+      case symbol if symbol.startsWith("'") => symbol.substring(1)
+      case x => x
+    }
+    parseUntil[T](state, state => stripToken(state.tokens.head.toString) == token, accumulate,
+      parseFunction, success, failure)
   }
 
   /*
