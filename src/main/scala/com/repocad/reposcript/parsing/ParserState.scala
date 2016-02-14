@@ -14,12 +14,12 @@ abstract class ParserState {
   /**
     * The environment contained in this state.
     */
-  abstract val env: ParserEnv
+  val env: ParserEnv
 
   /**
     * The remaining tokens that can be parsed in this state.
     */
-  abstract val tokens: LiveStream[Token]
+  val tokens: LiveStream[Token]
 
   /**
     * The [[Position]] of the source code in this state. Useful for debugging with information about the exact
@@ -38,7 +38,7 @@ abstract class ParserState {
   * @param env    The environment in the state.
   * @param tokens The remaining tokens to parse.
   */
-case class BlockState(block: BlockExpr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState[BlockExpr]
+case class BlockState(block: BlockExpr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState
 
 /**
   * A state in the parsing where [[Token]]s are evaluated to a definition.
