@@ -6,6 +6,7 @@ package com.repocad.reposcript.parsing
 trait BlockParser {
 
   def parseUntil[T <: ParserState](startState: T, condition: T => Boolean,
+                                   accumulate: (T, T) => T,
                                    parseFunction: ParserFunction[T],
                                    success: SuccessCont[T],
                                    failure: FailureCont[T]): Value[T] = {
@@ -13,11 +14,14 @@ trait BlockParser {
     Implementation note: This is done procedurally to avoid stack overflows with too deep recursion.
      */
     var currentState: Value[T] = Right[Error, T](startState)
-    while (currentState.isRight && !currentState.right.get.tokens.isPlugged && condition(currentState.right.get)) {
-      parseFunction(currentState.right.get, (state: T) => {
-        currentState = Right(state)
+    while (currentState.isRight && !currentState.right.get.tokens.isPlugged && !condition(currentState.right.get)) {
+      parseFunction.apply(currentState.right.get, (state: T) => {
+        currentState = Right(accumulate(currentState.right.get, state))
         currentState
-      }, failure)
+      }, error => {
+        currentState = Left(error)
+        currentState
+      })
     }
     currentState match {
       case Left(error) => failure(error)
@@ -25,9 +29,10 @@ trait BlockParser {
     }
   }
 
-  def parseUntilToken[T <: ParserState](state: T, token: String, parseFunction: ParserFunction[T],
-                                        success: SuccessCont[T], failure: FailureCont[T]): Value[T] = {
-    parseUntil[T](state, _.tokens.head.tag.toString == token, parseFunction, success, failure)
+  def parseUntilToken[T <: ParserState](state: T, token: String, accumulate: (T, T) => T,
+                                        parseFunction: ParserFunction[T], success: SuccessCont[T],
+                                        failure: FailureCont[T]): Value[T] = {
+    parseUntil[T](state, _.tokens.head.tag.toString == token, accumulate, parseFunction, success, failure)
   }
 
   /*

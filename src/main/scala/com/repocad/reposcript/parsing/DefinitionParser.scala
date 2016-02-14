@@ -38,7 +38,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
         parseFunctionParameters(DefinitionState(name, startState.env, tail),
           parameterState => Right(parameterState), error => Left(error)) match {
 
-          case Right(parameterState) => {
+          case Right(parameterState) =>
             parameterState.tokens match {
               case SymbolToken("=") :~: bodyTokens =>
                 parse(ExprState(UnitExpr, startState.env, bodyTokens), bodyState => {
@@ -55,7 +55,6 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
                 val objectExpr = ObjectType(name, parameterState.parameters, AnyType)
                 success(ExprState(objectExpr, startState.env + (name -> objectExpr), objectTail))
             }
-          }
 
           case Left(error) => failure(error)
         }
@@ -84,23 +83,14 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
     }
   }
 
-  private def parseFunctionParametersAndBody(startState: DefinitionState, success: SuccessCont[ExprState],
-                                             parameterFailure: FailureCont[DefinitionState],
-                                             bodyFailure: FailureCont[ExprState]): Value[ExprState] = {
-    parseUntilToken[DefinitionState](startState, ")", parseParameters, state => Right(state), parameterFailure) match {
-      case Left(error) => Left(error)
-      case Right(state) =>
-        state.tokens match {
-          case SymbolToken("=") :~: functionTail =>
-            parse(ExprState(BlockExpr(Seq()), state.env, functionTail), success, bodyFailure)
-          case tail => bodyFailure(Error.SYNTAX_ERROR("=", tail.toString)(state.position))
-        }
-    }
-  }
-
   private def parseFunctionParameters(startState: DefinitionState, success: SuccessCont[DefinitionState],
                                       failure: FailureCont[DefinitionState]): Value[DefinitionState] = {
-    parseUntilToken[DefinitionState](startState, ")", parseParameters, success, failure)
+    parseUntilToken[DefinitionState](startState, ")", accumulateDefinitions, parseParameters, success, failure)
+  }
+
+  private def accumulateDefinitions(first: DefinitionState, second: DefinitionState): DefinitionState = {
+    second.copy(parameters = first.parameters ++ second.parameters,
+      recursiveParameters = first.recursiveParameters ++ second.recursiveParameters)
   }
 
   private def parseParameters(state: DefinitionState, success: SuccessCont[DefinitionState],

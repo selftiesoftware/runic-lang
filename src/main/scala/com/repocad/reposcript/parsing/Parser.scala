@@ -13,6 +13,17 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
 
   private val DEFAULT_LOOP_COUNTER = "counter"
 
+  private def accumulateExprState(first: ExprState, second: ExprState): ExprState = {
+    (first.expr, second.expr) match {
+      case (UnitExpr, _) => second
+      case (_, UnitExpr) => second.copy(expr = first.expr)
+      case (xs: BlockExpr, ys: BlockExpr) => second.copy(expr = BlockExpr(xs.expr ++ ys.expr))
+      case (xs: BlockExpr, y) => second.copy(expr = BlockExpr(xs.expr :+ y))
+      case (x, ys: BlockExpr) => second.copy(expr = BlockExpr(x +: ys.expr))
+      case (x, y) => second.copy(expr = BlockExpr(Seq(x, y)))
+    }
+  }
+
   def parse(tokens: LiveStream[Token]): Value[ExprState] = {
     parse(tokens, spillEnvironment = false)
   }
@@ -20,7 +31,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
   def parse(tokens: LiveStream[Token], spillEnvironment: Boolean): Value[ExprState] = {
     try {
       val startState = ExprState(BlockExpr(Seq()), defaultEnv, tokens)
-      parseUntil[ExprState](startState, _ => true, parse,
+      parseUntil[ExprState](startState, _ => true, accumulateExprState, parse,
         state => {
           if (spillEnvironment) {
             Right(state)
@@ -77,14 +88,14 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
 
       // Blocks
       case PunctToken("{") :~: tail =>
-        parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), "}", parse, success, failure)
+        parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), "}", accumulateExprState, parse, success, failure)
       case PunctToken("(") :~: tail =>
-        parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), ")", parse, success, failure)
+        parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), ")", accumulateExprState, parse, success, failure)
 
       // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
         def parseCall(originalParameters: Seq[RefExpr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
-          parseUntilToken[ExprState](state.copy(tokens = tail), ")", parse, (parameterState: ExprState) =>
+          parseUntilToken[ExprState](state.copy(tokens = tail), ")", accumulateExprState, parse, (parameterState: ExprState) => {
             parameterState.expr match {
               case BlockExpr(params) =>
                 if (verifySameParams(originalParameters, params)) {
@@ -93,7 +104,8 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
                   failure(errorFunction(params.toString))
                 }
               case x => failure(Error.EXPECTED_PARAMETERS(state.expr.toString)(parameterState.position))
-            }, failure)
+            }
+          }, failure)
         }
         state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
           case Right(function: FunctionType) =>
