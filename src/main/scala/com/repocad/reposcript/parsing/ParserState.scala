@@ -3,19 +3,13 @@ package com.repocad.reposcript.parsing
 import com.repocad.reposcript.lexing.{LiveStream, Position, Token}
 
 /**
-  * A state in the parsing which contains results of a generic type [[T]]. The state is used to represent input and
-  * output of parsing functions which typically has the signature <pre>[[ParserState]] => [[ParserState]]</pre>.
+  * A state in the parsing which contains some result to be used in future steps in the parser. The state is used to
+  * represent input and output of parsing functions which typically has the signature
+  * <pre>[[ParserState]] => [[ParserState]]</pre>.
   * A state can thus both be interpreted as the output of a parsing, but also as the input to any further parsing
-  * steps.
-  *
-  * @tparam T The type of the results in this state.
+  * steps. The default state of the [[Parser]] is the [[ExprState]] which parses normal expressions.
   */
-abstract class ParserState[T] {
-
-  /**
-    * The content of the state. This is typically used as the result of a parsing function.
-    */
-  abstract val content: T
+abstract class ParserState {
 
   /**
     * The environment contained in this state.
@@ -37,7 +31,34 @@ abstract class ParserState[T] {
 
 }
 
-case class RecursiveState[T <: Expr](content: T => Seq[RefExpr], env: ParserEnv, tokens: LiveStream[Token]) extends ParserState[T => Seq[RefExpr]]
+/**
+  * A state for parsing blocks of [[Expr]] statements.
+  *
+  * @param block  The expressions within this state.
+  * @param env    The environment in the state.
+  * @param tokens The remaining tokens to parse.
+  */
+case class BlockState(block: BlockExpr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState[BlockExpr]
+
+/**
+  * A state in the parsing where [[Token]]s are evaluated to a definition.
+  *
+  * @param name                The name of the thing being defined.
+  * @param parameters          A number of parameters given to the definition.
+  * @param recursiveParameters Recursive parameters which are not yet evaluated to expressions.
+  * @param env                 The environment of the state.
+  * @param tokens              The remaining tokens to parse.
+  */
+case class DefinitionState(name: String, parameters: Seq[RefExpr], recursiveParameters: Seq[String], env: ParserEnv,
+                           tokens: LiveStream[Token]) extends ParserState
+
+/**
+  * Helps construct [[DefinitionState]]s.
+  */
+object DefinitionState {
+  def apply(name: String, env: ParserEnv, tokens: LiveStream[Token]): DefinitionState =
+    DefinitionState(name, Seq(), Seq(), env, tokens)
+}
 
 /**
   * A state in the parsing of [[Token]]s to [[Expr]].
@@ -46,9 +67,7 @@ case class RecursiveState[T <: Expr](content: T => Seq[RefExpr], env: ParserEnv,
   * @param env    The environment with the currenly stored values.
   * @param tokens The remaining tokens to parse.
   */
-case class ExprState(expr: Expr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState[Expr] {
-  def content = expr
-}
+case class ExprState(expr: Expr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState
 
 /**
   * Helps construct [[ParserState]] instantiations.
@@ -56,5 +75,5 @@ case class ExprState(expr: Expr, env: ParserEnv, tokens: LiveStream[Token]) exte
 object ParserState {
   private val emptyStream = LiveStream[Token](Iterable())
 
-  def apply(expr: Expr, env: ParserEnv): ParserState[Expr] = new ExprState(expr, env, emptyStream)
+  def apply(expr: Expr, env: ParserEnv): ParserState = new ExprState(expr, env, emptyStream)
 }

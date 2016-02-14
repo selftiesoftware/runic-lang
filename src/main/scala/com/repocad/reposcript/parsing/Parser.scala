@@ -4,30 +4,40 @@ import com.repocad.reposcript.lexing._
 import com.repocad.reposcript.{HttpClient, RemoteCache}
 
 /**
- * Parses code into drawing expressions (AST)
- */
-class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) extends BlockParser with DefinitionParser {
+  * Parses code into drawing expressions (AST)
+  */
+class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
+  extends BlockParser with DefinitionParser with ParserInterface {
 
   val remoteCache = new RemoteCache(httpClient)
 
   private val DEFAULT_LOOP_COUNTER = "counter"
 
-  def parse(tokens : LiveStream[Token]) : Value = {
+  def parse(tokens: LiveStream[Token]): Value[ExprState] = {
     parse(tokens, spillEnvironment = false)
   }
 
-  def parse(tokens : LiveStream[Token], spillEnvironment : Boolean) : Value = {
+  def parse(tokens: LiveStream[Token], spillEnvironment: Boolean): Value[ExprState] = {
     try {
-      parseUntil(parse, _ => false, ParserState(UnitExpr, defaultEnv, tokens),
-                 state => Right(state), e => Left(e), spillEnvironment)
+      val startState = ExprState(BlockExpr(Seq()), defaultEnv, tokens)
+      parseUntil[ExprState](startState, _ => true, parse,
+        state => {
+          if (spillEnvironment) {
+            Right(state)
+          }
+          else {
+            Right(state.copy(env = defaultEnv))
+          }
+        }, e => Left(e))
     } catch {
-      case e : InternalError => Left(Error("Script too large (sorry - we're working on it!)", Position.empty))
-      case e : Exception => Left(Error(e.getLocalizedMessage, Position.empty))
+      case e: InternalError => Left(Error("Script too large (sorry - we're working on it!)", Position.empty))
+      case e: Exception => Left(Error(e.getLocalizedMessage, Position.empty))
     }
   }
 
-  def parse(state : ParserState, successWithoutSuffix: SuccessCont, failure: FailureCont): Value = {
-    val success : SuccessCont = prefixState => parseSuffix(prefixState, successWithoutSuffix, failure)
+  override def parse(state: ExprState, successWithoutSuffix: SuccessCont[ExprState],
+                     failure: FailureCont[ExprState]): Value[ExprState] = {
+    val success: SuccessCont[ExprState] = prefixState => parseSuffix(prefixState, successWithoutSuffix, failure)
     state.tokens match {
 
       // Import
@@ -36,7 +46,7 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) extends Bl
         res match {
           case Left(error) => failure(error)
           case Right(importState) =>
-            success(ParserState(ImportExpr(script), state.env.++(importState.env), tail))
+            success(ExprState(ImportExpr(script), state.env.++(importState.env), tail))
         }
 
       case SymbolToken("if") :~: tail =>
@@ -48,11 +58,11 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) extends Bl
               ifState.tokens match {
                 case SymbolToken("else") :~: elseIfTail =>
                   parse(ifState.copy(tokens = elseIfTail), elseState => {
-                    success(ParserState(IfExpr(conditionState.expr, ifState.expr,
+                    success(ExprState(IfExpr(conditionState.expr, ifState.expr,
                       elseState.expr, ifState.expr.t.findCommonParent(elseState.expr.t)),
                       state.env, elseState.tokens))
                   }, failure)
-                case _ => success(ParserState(IfExpr(conditionState.expr, ifState.expr,
+                case _ => success(ExprState(IfExpr(conditionState.expr, ifState.expr,
                   UnitExpr, ifState.expr.t.findCommonParent(UnitType)), state.env, ifState.tokens))
               }
             }, failure)
@@ -66,46 +76,49 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) extends Bl
       case SymbolToken("def") :~: tail => parseDefinition(state.copy(tokens = tail), success, failure)
 
       // Blocks
-      case PunctToken("{") :~: tail => parseUntil("}", state.copy(expr = UnitExpr, tokens = tail), success, failure)
-      case PunctToken("(") :~: tail => parseUntil(")", state.copy(expr = UnitExpr, tokens = tail), success, failure)
+      case PunctToken("{") :~: tail =>
+        parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), "}", parse, success, failure)
+      case PunctToken("(") :~: tail =>
+        parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), ")", parse, success, failure)
 
       // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        def parseCall(originalParameters : Seq[RefExpr], t : AnyType, errorFunction : String => Error) : Value = {
-          parseUntil(")", state.copy(tokens = tail), (parameterState: ParserState) => parameterState.expr match {
-            case BlockExpr(params) =>
-              if (verifySameParams(originalParameters, params)) {
-                success(ParserState(CallExpr(name, t, params), state.env, parameterState.tokens))
-              } else {
-                failure(errorFunction(params.toString))
-              }
-            case x => failure(Error.EXPECTED_PARAMETERS(state.expr.toString)(parameterState.position))
-          }, failure)
+        def parseCall(originalParameters: Seq[RefExpr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
+          parseUntilToken[ExprState](state.copy(tokens = tail), ")", parse, (parameterState: ExprState) =>
+            parameterState.expr match {
+              case BlockExpr(params) =>
+                if (verifySameParams(originalParameters, params)) {
+                  success(ExprState(CallExpr(name, t, params), state.env, parameterState.tokens))
+                } else {
+                  failure(errorFunction(params.toString))
+                }
+              case x => failure(Error.EXPECTED_PARAMETERS(state.expr.toString)(parameterState.position))
+            }, failure)
         }
         state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
           case Right(function: FunctionType) =>
             parseCall(function.params, function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
-          case Right(ref : RefExpr) =>
+          case Right(ref: RefExpr) =>
             ref.t match {
-              case function : FunctionType => parseCall(function.params, function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
+              case function: FunctionType => parseCall(function.params, function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
               case notFunction => failure(Error.TYPE_MISMATCH("function", notFunction.toString, "calling " + name)(state.position))
             }
           case x => // Some(RefExpr) could be returned, so None does not cover this case entirely
             state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
               case Right(o: ObjectType) =>
                 parseCall(o.params, o, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
-              case Left(x) => // Assume regular reference
+              case Left(_) => // Assume regular reference
                 parseReference(name, tail, state, success, failure)
             }
         }
 
       // Values
-      case BooleanToken(value: Boolean) :~: tail => success(ParserState(BooleanExpr(value), state.env, tail))
-      case SymbolToken("false") :~: tail => success(ParserState(BooleanExpr(false), state.env, tail))
-      case SymbolToken("true") :~: tail => success(ParserState(BooleanExpr(true), state.env, tail))
-      case DoubleToken(value : Double) :~: tail => success(ParserState(NumberExpr(value), state.env, tail))
-      case IntToken(value: Int) :~: tail => success(ParserState(NumberExpr(value), state.env, tail))
-      case StringToken(value : String) :~: tail => success(ParserState(StringExpr(value), state.env, tail))
+      case BooleanToken(value: Boolean) :~: tail => success(ExprState(BooleanExpr(value), state.env, tail))
+      case SymbolToken("false") :~: tail => success(ExprState(BooleanExpr(false), state.env, tail))
+      case SymbolToken("true") :~: tail => success(ExprState(BooleanExpr(true), state.env, tail))
+      case DoubleToken(value: Double) :~: tail => success(ExprState(NumberExpr(value), state.env, tail))
+      case IntToken(value: Int) :~: tail => success(ExprState(NumberExpr(value), state.env, tail))
+      case StringToken(value: String) :~: tail => success(ExprState(StringExpr(value), state.env, tail))
 
       // References to values, functions or objects
       case SymbolToken(name) :~: tail => parseReference(name, tail, state, success, failure)
@@ -117,20 +130,22 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) extends Bl
   }
 
 
-  private def parseLoop(state : ParserState, success: SuccessCont, failure: FailureCont) : Value = {
-    def parseLoopWithRange(counterName : String, from : Expr, to : Expr, bodyTokens : LiveStream[Token], success: SuccessCont, failure: FailureCont) : Value = {
+  private def parseLoop(state: ExprState, success: SuccessCont[ExprState],
+                        failure: FailureCont[ExprState]): Value[ExprState] = {
+    def parseLoopWithRange(counterName: String, from: Expr, to: Expr, bodyTokens: LiveStream[Token],
+                           success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] = {
       if (!NumberType.isChild(from.t)) {
         failure(Error.TYPE_MISMATCH("number", from.t.toString, "defining the number to start from in a loop")(state.position))
       } else if (!NumberType.isChild(to.t)) {
         failure(Error.TYPE_MISMATCH("number", to.t.toString, "defining when to end a loop")(state.position))
       } else {
-        parse(ParserState(UnitExpr, state.env + (counterName -> from), bodyTokens), bodyState => {
-          success(ParserState(LoopExpr(DefExpr(counterName, from), to, bodyState.expr),
-                  state.env, bodyState.tokens))
+        parse(ExprState(UnitExpr, state.env + (counterName -> from), bodyTokens), bodyState => {
+          success(ExprState(LoopExpr(DefExpr(counterName, from), to, bodyState.expr),
+            state.env, bodyState.tokens))
         }, failure)
       }
     }
-    def parseLoopWithCounterName(fromExpr : Expr, toExpr : Expr, loopNameTail : LiveStream[Token]) = {
+    def parseLoopWithCounterName(fromExpr: Expr, toExpr: Expr, loopNameTail: LiveStream[Token]) = {
       loopNameTail match {
         case SymbolToken(counterName) :~: tail => parseLoopWithRange(counterName, fromExpr, toExpr, tail, success, failure)
         case unknown => failure(Error.SYNTAX_ERROR("name of a loop variable", unknown.toString)(state.position))
@@ -146,48 +161,49 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) extends Bl
     }, failure)
   }
 
-  private def parseReference(name : String, tail : LiveStream[Token], state : ParserState, success: SuccessCont, failure: FailureCont) : Value = {
+  private def parseReference(name: String, tail: LiveStream[Token], state: ParserState,
+                             success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] = {
     state.env.get(name) match {
-      case Right(typeExpr : AnyType) => success(ParserState(RefExpr(name, typeExpr), state.env, tail))
-      case Right(expr) => success(ParserState(RefExpr(name, expr.t), state.env, tail))
+      case Right(typeExpr: AnyType) => success(ExprState(RefExpr(name, typeExpr), state.env, tail))
+      case Right(expr) => success(ExprState(RefExpr(name, expr.t), state.env, tail))
       case Left(errorFunction) => failure(errorFunction(state.position))
     }
   }
 
-  private def parseSuffix(state : ParserState, success : SuccessCont, failure : FailureCont) : Value = {
+  private def parseSuffix(state: ExprState, success: SuccessCont[ExprState],
+                          failure: FailureCont[ExprState]): Value[ExprState] = {
     state.tokens match {
-
       // Object field accessors
-      case PunctToken(".") :~: (accessor : SymbolToken) :~: tail =>
-        def findParamFromObject(reference : Expr, obj : ObjectType) : Value = {
+      case PunctToken(".") :~: (accessor: SymbolToken) :~: tail =>
+        def findParamFromObject(reference: Expr, obj: ObjectType): Value[ExprState] = {
           obj.params.find(_.name == accessor.s).map(
-            param => success(ParserState(RefFieldExpr(reference, param.name, param.t), state.env, tail))
+            param => success(ExprState(RefFieldExpr(reference, param.name, param.t), state.env, tail))
           ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(obj.name, accessor.s)(accessor.position)))
         }
 
         state.expr match {
-          case call : CallExpr if call.t.isInstanceOf[ObjectType] => findParamFromObject(call, call.t.asInstanceOf[ObjectType])
-          case ref : RefExpr if ref.t.isInstanceOf[ObjectType] => findParamFromObject(ref, ref.t.asInstanceOf[ObjectType])
+          case call: CallExpr if call.t.isInstanceOf[ObjectType] => findParamFromObject(call, call.t.asInstanceOf[ObjectType])
+          case ref: RefExpr if ref.t.isInstanceOf[ObjectType] => findParamFromObject(ref, ref.t.asInstanceOf[ObjectType])
 
           case unknown => failure(Error.EXPECTED_OBJECT_ACCESS(state.expr.toString)(state.position))
         }
 
       case SymbolToken(name) :~: tail =>
-        def parseAsFunction(f : SuccessCont) : Value = parse(ParserState(UnitExpr, state.env, tail), f, failure)
+        def parseAsFunction(f: SuccessCont[ExprState]): Value[ExprState] = parse(ExprState(UnitExpr, state.env, tail), f, failure)
 
         state.env.getAll(name).filter(_.isInstanceOf[FunctionType]).toSeq match {
-          case Seq(f : FunctionType) if f.params.size == 1 => parseAsFunction(firstState => {
+          case Seq(f: FunctionType) if f.params.size == 1 => parseAsFunction(firstState => {
             // Should be parsed as normal
             success(state)
           })
           // If the call requires two parameters, we look to the previous expression
-          case Seq(f : FunctionType) if f.params.size == 2 =>
+          case Seq(f: FunctionType) if f.params.size == 2 =>
             state.expr match {
-              case firstParameter : Expr if f.params.head.t.isChild(firstParameter.t) =>
+              case firstParameter: Expr if f.params.head.t.isChild(firstParameter.t) =>
                 parseAsFunction(secondState => {
                   val secondParameter = secondState.expr
                   if (f.params(1).t.isChild(secondParameter.t)) {
-                    success(ParserState(CallExpr(name, f.returnType, Seq(firstParameter, secondParameter)), state.env, secondState.tokens))
+                    success(ExprState(CallExpr(name, f.returnType, Seq(firstParameter, secondParameter)), state.env, secondState.tokens))
                   } else {
                     failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
                   }
@@ -202,13 +218,13 @@ class Parser(val httpClient : HttpClient, val defaultEnv : ParserEnv) extends Bl
     }
   }
 
-  private def verifySameParams(parameters : Seq[RefExpr], callParameters : Seq[Expr]) : Boolean = {
+  private def verifySameParams(parameters: Seq[RefExpr], callParameters: Seq[Expr]): Boolean = {
     if (parameters.size != callParameters.size) {
       return false
     }
 
     for (i <- parameters.indices) {
-      if(!parameters(i).t.isChild(callParameters(i).t)) {
+      if (!parameters(i).t.isChild(callParameters(i).t)) {
         return false
       }
     }

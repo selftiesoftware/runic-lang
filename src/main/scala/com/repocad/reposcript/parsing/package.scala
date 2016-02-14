@@ -1,19 +1,19 @@
 package com.repocad.reposcript
 
-import com.repocad.reposcript.lexing.{Position, Token, LiveStream}
-
 /**
- * The parsing package contains code for converting [[com.repocad.reposcript.lexing.Token]]s into an Abstract Syntax Tree
- * (AST), which is a tree structure with an [[com.repocad.reposcript.parsing.Expr]] as the only root.
- */
+  * The parsing package contains code for converting [[com.repocad.reposcript.lexing.Token]]s into an Abstract Syntax Tree
+  * (AST), which is a tree structure with an [[com.repocad.reposcript.parsing.Expr]] as the only root.
+  */
 package object parsing {
 
-  type Value = Either[Error, ParserState]
+  type Value[T <: ParserState] = Either[Error, T]
 
-  type FailureCont = Error => Value
-  type SuccessCont = ParserState => Value
+  type FailureCont[T <: ParserState] = Error => Value[T]
+  type SuccessCont[T <: ParserState] = T => Value[T]
 
-  lazy val stringTypeMap : Map[String, AnyType] = Map(
+  type ParserFunction[T <: ParserState] = (T, SuccessCont[T], FailureCont[T]) => Value[T]
+
+  lazy val stringTypeMap: Map[String, AnyType] = Map(
     "Boolean" -> BooleanType,
     "Number" -> NumberType,
     "String" -> StringType,

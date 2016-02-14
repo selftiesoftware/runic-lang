@@ -1,5 +1,5 @@
 
-enablePlugins(ScalaJSPlugin)
+//enablePlugins(ScalaJSPlugin)
 
 name := "reposcript"
 

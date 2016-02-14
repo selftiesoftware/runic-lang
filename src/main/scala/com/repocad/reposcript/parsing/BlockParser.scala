@@ -1,23 +1,42 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.lexing.{Token, LiveStream}
-
 /**
   * Parses blocks of code.
   */
-trait BlockParser extends ParserInterface {
+trait BlockParser {
 
-  def parseUntil(token : String, state : ParserState,
-                         success : SuccessCont, failure: FailureCont): Value = {
-    parseUntil(parse, stream => stream.head.tag.toString.equals(token), state, success, failure)
+  def parseUntil[T <: ParserState](startState: T, condition: T => Boolean,
+                                   parseFunction: ParserFunction[T],
+                                   success: SuccessCont[T],
+                                   failure: FailureCont[T]): Value[T] = {
+    /*
+    Implementation note: This is done procedurally to avoid stack overflows with too deep recursion.
+     */
+    var currentState: Value[T] = Right[Error, T](startState)
+    while (currentState.isRight && !currentState.right.get.tokens.isPlugged && condition(currentState.right.get)) {
+      parseFunction(currentState.right.get, (state: T) => {
+        currentState = Right(state)
+        currentState
+      }, failure)
+    }
+    currentState match {
+      case Left(error) => failure(error)
+      case Right(state) => success(state)
+    }
   }
 
-  def parseUntil(parseCallback : (ParserState, SuccessCont, FailureCont) => Value,
-                         condition : LiveStream[Token] => Boolean, beginningState : ParserState,
-                         success : SuccessCont, failure : FailureCont, spillEnvironment : Boolean = false): Value = {
+  def parseUntilToken[T <: ParserState](state: T, token: String, parseFunction: ParserFunction[T],
+                                        success: SuccessCont[T], failure: FailureCont[T]): Value[T] = {
+    parseUntil[T](state, _.tokens.head.tag.toString == token, parseFunction, success, failure)
+  }
+
+  /*
+  def parseBlock(parseCallback: (BlockState, SuccessCont, FailureCont) => Value,
+                 condition: LiveStream[Token] => Boolean, beginningState: BlockState,
+                 success: BlockState => Either[Error, BlockState], failure: FailureCont, spillEnvironment: Boolean = false):
+  Either[Error, BlockState] = {
     var stateVar = beginningState
-    var seqExpr : Seq[Expr] = Seq()
-    var seqFail : Option[Error] = None
+    var seqFail: Option[Error] = None
     def seqSuccess: SuccessCont = state => {
       stateVar = state
       Right(stateVar)
@@ -30,13 +49,13 @@ trait BlockParser extends ParserInterface {
       parseCallback(stateVar, seqSuccess, seqFailure) match {
         case Left(s) => seqFail = Some(s)
         case Right(newState) =>
-          if (newState.expr != UnitExpr) {
+          if (newState. != UnitExpr) {
             seqExpr :+= newState.expr
           }
           stateVar = newState
       }
     }
-    if (!stateVar.tokens.isPlugged && condition(stateVar.tokens) ) {
+    if (!stateVar.tokens.isPlugged && condition(stateVar.tokens)) {
       stateVar = stateVar.copy(tokens = stateVar.tokens.tail)
     }
     seqFail.map(seqFailure).getOrElse(
@@ -46,6 +65,6 @@ trait BlockParser extends ParserInterface {
         success(stateVar.copy(expr = BlockExpr(seqExpr), env = beginningState.env))
       }
     )
-  }
+  }*/
 
 }
