@@ -36,13 +36,13 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
 
       /* Function and object definition */
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        parseFunctionParameters(DefinitionState(name, startState.env, tail),
-          parameterState => Right(parameterState), error => Left(error)) match {
+        parseFunctionParameters(DefinitionState(name, startState.env, tail), parameterState => Right(parameterState),
+          error => Left(error)) match {
 
           case Right(parameterState) =>
             parameterState.tokens match {
               case SymbolToken("=") :~: bodyTokens =>
-                parse(ExprState(UnitExpr, startState.env, bodyTokens), bodyState => {
+                parse(ExprState(UnitExpr, parameterState.env, bodyTokens), bodyState => {
                   val function = FunctionType(name, parameterState.parameters, bodyState.expr)
                   success(ExprState(function, startState.env.+(name -> function), bodyState.tokens))
                 }, failure)
@@ -53,7 +53,10 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
               //case SymbolToken("as")
 
               case objectTail =>
-                val objectExpr = ObjectType(name, parameterState.parameters, AnyType)
+                val objectExpr: ObjectType =
+                  ObjectType(name, parameterState.parameters ++ parameterState.recursiveParameters.map(
+                    parameterName => RefExpr(parameterName, TypeRef(name))
+                  ), AnyType)
                 success(ExprState(objectExpr, startState.env + (name -> objectExpr), objectTail))
             }
 
@@ -96,11 +99,11 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
   private def parseParameters(state: DefinitionState, success: SuccessCont[DefinitionState],
                               failure: FailureCont[DefinitionState]): Value[DefinitionState] = {
     state.tokens match {
-        // Recursive parameter referencing the same name as the function / object being defined
-      case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail if name == state.name =>
+      // Recursive parameter referencing the same name as the function / object being defined
+      case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail if typeName == state.name =>
         success(DefinitionState(state.name, state.parameters, state.recursiveParameters :+ name,
           state.env.+(name -> AnyType), tail))
-        // Regular non-recursive parameters...
+      // Regular non-recursive parameters...
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail =>
         state.env.getAsType(typeName, AnyType) match {
           case Right(typeExpr: AnyType) =>

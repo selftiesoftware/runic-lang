@@ -31,7 +31,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
   def parse(tokens: LiveStream[Token], spillEnvironment: Boolean): Value[ExprState] = {
     try {
       val startState = ExprState(BlockExpr(Seq()), defaultEnv, tokens)
-      parseUntil[ExprState](startState, _ => true, accumulateExprState, parse,
+      parseUntil[ExprState](startState, _ => false, accumulateExprState, parse,
         state => {
           if (spillEnvironment) {
             Right(state)
@@ -95,7 +95,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
       // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
         def parseCall(originalParameters: Seq[RefExpr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
-          parseUntilToken[ExprState](state.copy(tokens = tail), ")", accumulateExprState, parse, (parameterState: ExprState) => {
+          parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), ")", accumulateExprState, parse, (parameterState: ExprState) => {
             val parameters: Seq[Expr] = parameterState.expr match {
               case BlockExpr(params) => params
               case UnitExpr => Seq()
@@ -202,7 +202,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
         }
 
       case PunctToken(name) :~: tail if name != ")" && name != "}" => parseSuffixFunction(name, state.copy(tokens = tail), success, failure)
-      case SymbolToken(name) :~: tail => parseSuffixFunction(name, state.copy(tokens = tail), success, failure)
+      case SymbolToken(name) :~: tail => parseSuffixFunction(name, state, success, failure)
 
       case _ => success(state)
     }
@@ -211,7 +211,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
   def parseSuffixFunction(name: String, state: ExprState, success: SuccessCont[ExprState],
                           failure: FailureCont[ExprState]): Value[ExprState] = {
     def parseAsFunction(f: SuccessCont[ExprState]): Value[ExprState] =
-      parse(ExprState(UnitExpr, state.env, state.tokens), f, failure)
+      parse(ExprState(UnitExpr, state.env, state.tokens.tail /* Exclude the last token (the name) */), f, failure)
 
     state.env.getAll(name).filter(_.isInstanceOf[FunctionType]).toSeq match {
       case Seq(f: FunctionType) if f.params.size == 1 => parseAsFunction(firstState => {

@@ -102,7 +102,7 @@ class DefinitionTest extends ParsingTest {
     val obj = ObjectType("o", Seq(RefExpr("x", NumberType)), AnyType)
     parseString("o(10).x", ParserEnv("o" -> obj)).right.get.expr should equal(RefFieldExpr(CallExpr("o", obj, Seq(NumberExpr(10))), "x", NumberType))
   }
-  it should "refer to an object" in {
+  it should "refer to a field in a referenced object" in {
     val obj = ObjectType("o", Seq(RefExpr("x", NumberType)), AnyType)
     val instance = CallExpr("o", obj, Seq(NumberExpr(10)))
     val expr = parseStringAll("def o(x as Number) \n def i = o(10) \n i.x", ParserEnv("Number" -> NumberType))
@@ -127,7 +127,7 @@ class DefinitionTest extends ParsingTest {
     parseString("def o2(o as o1)", ParserEnv("o1" -> o1)).right.get.expr should equal(ObjectType("o2", Seq(RefExpr("o", o1)), AnyType))
   }
   it should "define an object recursively" in {
-    def o: ObjectType = ObjectType("o", Seq(RefExpr("a", o)), AnyType)
+    val o: ObjectType = ObjectType("o", Seq(RefExpr("a", TypeRef("o"))), AnyType)
     parseString("def o(a as o)").right.get.expr should equal(o)
   }
 
