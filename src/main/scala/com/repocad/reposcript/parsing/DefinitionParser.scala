@@ -17,11 +17,11 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
           parameterState => {
             parameterState.tokens match {
               case SymbolToken(name) :~: PunctToken("(") :~: parameterTail =>
-                parseFunctionParameters(parameterState.copy(tokens = parameterTail), secondParameterState => {
+                parseFunctionParameters(parameterState.copy(name = name, tokens = parameterTail), secondParameterState => {
                   Right(secondParameterState)
                 }, error => Left(failure(error).left.get))
               case SymbolToken(name) :~: SymbolToken("=") :~: functionTail =>
-                Right(parameterState.copy(tokens = functionTail))
+                Right(parameterState.copy(name = name, tokens = functionTail))
             }
           }, error => Left(error))
         parametersEither match {

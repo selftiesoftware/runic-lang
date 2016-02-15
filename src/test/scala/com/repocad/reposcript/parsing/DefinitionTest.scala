@@ -18,7 +18,6 @@ class DefinitionTest extends ParsingTest {
     parseString("def a = 10", ParserEnv()).right.get.env should equal(ParserEnv("a" -> NumberExpr(10)))
   }
   it should "fail when wrong type is specified" in {
-    println(parseString("def a as Unit = 1"))
     parseString("def a as Unit = 1").isLeft should equal(true)
   }
   it should "recognise future expressions as part of the definition" in {

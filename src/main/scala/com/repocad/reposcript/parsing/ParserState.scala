@@ -73,8 +73,8 @@ case class ExprState(expr: Expr, env: ParserEnv, tokens: LiveStream[Token]) exte
 /**
   * Helps construct [[ParserState]] instantiations.
   */
-object ParserState {
+object ExprState {
   private val emptyStream = LiveStream[Token](Iterable())
 
-  def apply(expr: Expr, env: ParserEnv): ParserState = new ExprState(expr, env, emptyStream)
+  def apply(expr: Expr, env: ParserEnv): ExprState = new ExprState(expr, env, emptyStream)
 }

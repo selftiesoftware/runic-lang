@@ -96,14 +96,15 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
         def parseCall(originalParameters: Seq[RefExpr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
           parseUntilToken[ExprState](state.copy(tokens = tail), ")", accumulateExprState, parse, (parameterState: ExprState) => {
-            parameterState.expr match {
-              case BlockExpr(params) =>
-                if (verifySameParams(originalParameters, params)) {
-                  success(ExprState(CallExpr(name, t, params), state.env, parameterState.tokens))
-                } else {
-                  failure(errorFunction(params.toString))
-                }
-              case x => failure(Error.EXPECTED_PARAMETERS(state.expr.toString)(parameterState.position))
+            val parameters: Seq[Expr] = parameterState.expr match {
+              case BlockExpr(params) => params
+              case UnitExpr => Seq()
+              case expr => Seq(expr)
+            }
+            if (verifySameParams(originalParameters, parameters)) {
+              success(ExprState(CallExpr(name, t, parameters), state.env, parameterState.tokens))
+            } else {
+              failure(errorFunction(parameters.toString))
             }
           }, failure)
         }
@@ -184,6 +185,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
 
   private def parseSuffix(state: ExprState, success: SuccessCont[ExprState],
                           failure: FailureCont[ExprState]): Value[ExprState] = {
+
     state.tokens match {
       // Object field accessors
       case PunctToken(".") :~: (accessor: SymbolToken) :~: tail =>
@@ -200,34 +202,46 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
           case unknown => failure(Error.EXPECTED_OBJECT_ACCESS(state.expr.toString)(state.position))
         }
 
-      case SymbolToken(name) :~: tail =>
-        def parseAsFunction(f: SuccessCont[ExprState]): Value[ExprState] = parse(ExprState(UnitExpr, state.env, tail), f, failure)
+      case PunctToken(name) :~: tail => parseSuffixFunction(name, state.copy(tokens = tail), success, failure)
+      case SymbolToken(name) :~: tail => parseSuffixFunction(name, state.copy(tokens = tail), success, failure)
 
-        state.env.getAll(name).filter(_.isInstanceOf[FunctionType]).toSeq match {
-          case Seq(f: FunctionType) if f.params.size == 1 => parseAsFunction(firstState => {
-            // Should be parsed as normal
-            success(state)
-          })
-          // If the call requires two parameters, we look to the previous expression
-          case Seq(f: FunctionType) if f.params.size == 2 =>
-            state.expr match {
-              case firstParameter: Expr if f.params.head.t.isChild(firstParameter.t) =>
-                parseAsFunction(secondState => {
-                  val secondParameter = secondState.expr
-                  if (f.params(1).t.isChild(secondParameter.t)) {
+      case _ => success(state)
+    }
+  }
+
+  def parseSuffixFunction(name: String, state: ExprState, success: SuccessCont[ExprState],
+                          failure: FailureCont[ExprState]): Value[ExprState] = {
+    def parseAsFunction(f: SuccessCont[ExprState]): Value[ExprState] =
+      parse(ExprState(UnitExpr, state.env, state.tokens), f, failure)
+
+    state.env.getAll(name).filter(_.isInstanceOf[FunctionType]).toSeq match {
+      case Seq(f: FunctionType) if f.params.size == 1 => parseAsFunction(firstState => {
+        // Should be parsed as normal
+        success(state)
+      })
+      // If the call requires two parameters, we look to the previous expression
+      case Seq(f: FunctionType) if f.params.size == 2 =>
+        state.expr match {
+          case firstParameter: Expr if f.params.head.t.isChild(firstParameter.t) =>
+            parseAsFunction(secondState => {
+              val secondParameter = secondState.expr
+              if (f.params(1).t.isChild(secondParameter.t)) {
+                state.expr match {
+                  case DefExpr(defName, value) =>
+                    success(secondState.copy(expr = DefExpr(defName, CallExpr(name, f.returnType, Seq(value, secondParameter)))))
+                  case expr =>
                     success(ExprState(CallExpr(name, f.returnType, Seq(firstParameter, secondParameter)), state.env, secondState.tokens))
-                  } else {
-                    failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
-                  }
-                })
-              case _ => success(state)
-            }
-
+                }
+              } else {
+                failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
+              }
+            })
           case _ => success(state)
         }
 
       case _ => success(state)
     }
+
   }
 
   private def verifySameParams(parameters: Seq[RefExpr], callParameters: Seq[Expr]): Boolean = {

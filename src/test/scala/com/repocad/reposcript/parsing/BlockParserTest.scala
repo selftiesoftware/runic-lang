@@ -18,11 +18,14 @@ class BlockParserTest extends ParsingTest {
   }
   it should "parse until a character token" in {
     val tokens = Lexer.lex("a b c")
-    (mockedSuccess.apply _).expects(where { (state: ExprState) => {
-      state.tokens.head.toString == "'b"
-    }
-    }).once()
+    (mockedSuccess.apply _).expects(where { (state: ExprState) => { state.tokens.head.toString == "'b"}}).once()
     parser.parseUntilToken[ExprState](ExprState(UnitExpr, ParserEnv(), tokens), "b", (first, second) => second,
+      stateTailer, mockedSuccess, mockedFailure)
+  }
+  it should "parse until a punct token" in {
+    val tokens = Lexer.lex("a b )")
+    (mockedSuccess.apply _).expects(where { (state: ExprState) => { state.tokens.head.toString == "[)]"}}).once()
+    parser.parseUntilToken[ExprState](ExprState(UnitExpr, ParserEnv(), tokens), ")", (first, second) => second,
       stateTailer, mockedSuccess, mockedFailure)
   }
   it should "accumulate states" in {

@@ -34,9 +34,12 @@ trait BlockParser {
                                         failure: FailureCont[T]): Value[T] = {
     def stripToken(string: String): String = string match {
       case symbol if symbol.startsWith("'") => symbol.substring(1)
+      case brackets if brackets.startsWith("[") && brackets.endsWith("]") => brackets.substring(1, brackets.length - 1)
       case x => x
     }
-    parseUntil[T](state, state => stripToken(state.tokens.head.toString) == token, accumulate,
+    parseUntil[T](state, state => {
+      stripToken(state.tokens.head.toString) == token
+    }, accumulate,
       parseFunction, success, failure)
   }
 
