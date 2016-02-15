@@ -37,7 +37,7 @@ class DefinitionTest extends ParsingTest {
     testEquals(FunctionType("a", Seq(RefExpr("b", NumberType)), UnitExpr), "def a(b as Number) = ")
   }
   it should "parse a function without a parameter but with a body" in {
-    testEquals(FunctionType("a", Seq(), BlockExpr(Seq(DefExpr("b", NumberExpr(10.2))))), "def a() = { def b = 10.2 }")
+    testEquals(FunctionType("a", Seq(), DefExpr("b", NumberExpr(10.2))), "def a() = { def b = 10.2 }")
   }
   it should "parse a function with two parameters and no body" in {
     testEquals(FunctionType("a", Seq(RefExpr("b", NumberType), RefExpr("c", NumberType)), UnitExpr), "def a(b as Number c as Number) = ")

@@ -13,7 +13,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
       /* Functions or objects */
       /* Prepended function */
       case PunctToken("(") :~: tail =>
-        val parametersEither = parseFunctionParameters(DefinitionState("", startState.env, startState.tokens),
+        val parametersEither = parseFunctionParameters(DefinitionState("", startState.env, tail),
           parameterState => {
             parameterState.tokens match {
               case SymbolToken(name) :~: PunctToken("(") :~: parameterTail =>
@@ -24,6 +24,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
                 Right(parameterState.copy(name = name, tokens = functionTail))
             }
           }, error => Left(error))
+
         parametersEither match {
           case Right(parameters) =>
             parse(ExprState(UnitExpr, parameters.env, parameters.tokens), bodyState => {
@@ -89,16 +90,17 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
   }
 
   private def accumulateDefinitions(first: DefinitionState, second: DefinitionState): DefinitionState = {
-    second.copy(parameters = first.parameters ++ second.parameters,
-      recursiveParameters = first.recursiveParameters ++ second.recursiveParameters)
+    second
   }
 
   private def parseParameters(state: DefinitionState, success: SuccessCont[DefinitionState],
                               failure: FailureCont[DefinitionState]): Value[DefinitionState] = {
     state.tokens match {
-      case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail =>
+        // Recursive parameter referencing the same name as the function / object being defined
+      case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail if name == state.name =>
         success(DefinitionState(state.name, state.parameters, state.recursiveParameters :+ name,
           state.env.+(name -> AnyType), tail))
+        // Regular non-recursive parameters...
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail =>
         state.env.getAsType(typeName, AnyType) match {
           case Right(typeExpr: AnyType) =>

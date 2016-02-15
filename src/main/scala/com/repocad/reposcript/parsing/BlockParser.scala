@@ -43,8 +43,7 @@ trait BlockParser {
     }
     parseUntil[T](state, state => {
       stripToken(state.tokens.head.toString) == token
-    }, accumulate,
-      parseFunction, success, failure)
+    }, accumulate, parseFunction, success, failure)
   }
 
   /*
