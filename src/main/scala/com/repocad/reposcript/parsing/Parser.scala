@@ -30,7 +30,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
 
   def parse(tokens: LiveStream[Token], spillEnvironment: Boolean): Value[ExprState] = {
     try {
-      val startState = ExprState(BlockExpr(Seq()), defaultEnv, tokens)
+      val startState = ExprState(UnitExpr, defaultEnv, tokens)
       parseUntil[ExprState](startState, _ => false, accumulateExprState, parse,
         state => {
           if (spillEnvironment) {

@@ -3,19 +3,19 @@ package com.repocad.reposcript.parsing
 class StringParserTest extends ParsingTest {
 
   "A text parser" should "parse a empty string" in {
-    testEqualsAll(Seq(), "")
+    testEqualsAll(UnitExpr, "")
   }
   it should "parse empty spaces" in {
-    testEqualsAll(Seq(), "  \n  ")
+    testEqualsAll(UnitExpr, "  \n  ")
   }
   it should "parse comments" in {
-    testEqualsAll(Seq(), "#Comment")
+    testEqualsAll(UnitExpr, "#Comment")
   }
   it should "parse comments with newlines" in {
-    testEqualsAll(Seq(), "#Comment\n  ")
+    testEqualsAll(UnitExpr, "#Comment\n  ")
   }
   it should "fail gracefully on unclosed brackets" in {
-    testEqualsAll(Seq(BlockExpr(Seq())), "(")
+    testEqualsAll(UnitExpr, "(")
   }
   it should "reset environments when ending blocks" in {
     parseStringAll("def a = 10", ParserEnv(), spillEnvironment = false) should equal(

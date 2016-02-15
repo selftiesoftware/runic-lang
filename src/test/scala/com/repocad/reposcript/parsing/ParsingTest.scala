@@ -15,8 +15,8 @@ trait ParsingTest extends FlatSpec with Matchers with MockFactory with BeforeAnd
     parser = new Parser(mockClient, emptyEnv)
   }
 
-  def testEqualsAll(expected: Seq[Expr], expression: String) = {
-    parseStringAll(expression).right.map(_.expr) should equal(Right(BlockExpr(expected)))
+  def testEqualsAll(expected: Expr, expression: String) = {
+    parseStringAll(expression).right.map(_.expr) should equal(Right(expected))
   }
 
   def testEquals(expected: Expr, expression: String, env: ParserEnv = emptyEnv): Unit = {
