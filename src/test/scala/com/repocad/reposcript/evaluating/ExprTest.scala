@@ -1,33 +1,33 @@
 package com.repocad.reposcript.evaluating
 
-import com.repocad.reposcript.{parsing, HttpClient}
+import com.repocad.reposcript.HttpClient
 import com.repocad.reposcript.parsing._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
- * Tests that the evaluator can evaluate [[com.repocad.reposcript.parsing.Expr]]
- */
+  * Tests that the evaluator can evaluate [[com.repocad.reposcript.parsing.Expr]]
+  */
 class ExprTest extends FlatSpec with MockFactory with Matchers {
 
-  val emptyEnv : Env = Map[String, Any]()
+  val emptyEnv: Env = Map[String, Any]()
   val mockParser = new Parser(mock[HttpClient], ParserEnv())
   val evaluator = new Evaluator(mockParser, Map())
 
   "An expression evaluator" should "evaluate an empty block expression" in {
-    evaluator.eval(BlockExpr(Seq()), emptyEnv) should equal (Right(emptyEnv -> Unit))
+    evaluator.eval(BlockExpr(Seq()), emptyEnv) should equal(Right(emptyEnv -> Unit))
   }
   it should "evaluate a non-empty block expression" in {
-    evaluator.eval(BlockExpr(Seq(NumberExpr(1))), emptyEnv) should equal (Right(emptyEnv -> 1))
+    evaluator.eval(BlockExpr(Seq(NumberExpr(1))), emptyEnv) should equal(Right(emptyEnv -> 1))
   }
   it should "evaluate a def expression" in {
-    evaluator.eval(DefExpr("test", NumberExpr(1)), emptyEnv) should equal (Right(Map("test" -> 1) -> 1))
+    evaluator.eval(DefExpr("test", NumberExpr(1)), emptyEnv) should equal(Right(Map("test" -> 1) -> 1))
   }
   it should "evaluate a function expression" in {
-    val fun = (env : Env, a : Int) => a
+    val fun = (env: Env, a: Int) => a
     val output = evaluator.eval(FunctionType("f", Seq(RefExpr("a", NumberType)), RefExpr("a", NumberType)), emptyEnv).right.get
     output._1.get("f") should equal(Some(output._2))
-    output._2.asInstanceOf[Function2[Env, Int, Int]](emptyEnv, 2) should equal (2)
+    output._2.asInstanceOf[Function2[Env, Int, Int]](emptyEnv, 2) should equal(2)
   }
 
   "An object evaluator" should "evaluate an object expression" in {
@@ -44,6 +44,14 @@ class ExprTest extends FlatSpec with MockFactory with Matchers {
     val params = Map("a" -> 12)
     evaluator.eval(RefFieldExpr(RefExpr("object", obj), "a", StringType), Map("object" -> params)) should equal(
       Right(Map("object" -> params), 12))
+  }
+  it should "evaluate an object with recursive parameter references" in {
+    val obj = ObjectType("object", Seq(RefExpr("a", NumberType), RefExpr("b", TypeRef("object"))), AnyType)
+    val paramNames = obj.params.map(_.name)
+    val parameterA = NumberExpr(39.92)
+    val parameterB = RefExpr("object", AnyType)
+    evaluator.eval(CallExpr("object", obj, Seq(parameterA, parameterB)), Map("object" -> paramNames)
+    ) should equal(Right(Map("object" -> paramNames), Map("a" -> parameterA, "b" -> parameterB)))
   }
 
   "A value evaluator" should "evaluate a boolean expression" in {

@@ -28,6 +28,15 @@ class DefinitionTest extends ParsingTest {
     parseString("def a = f() * 20", env).right.get.expr should equal(
       DefExpr("a", CallExpr("*", NumberType, Seq(CallExpr("f", NumberType, Seq()), NumberExpr(20)))))
   }
+  it should "store an object and refer to the value recursively" in {
+    val function = ObjectType("o", Seq(RefExpr("a", TypeRef("o"))), AnyType)
+    parseString("def a as o = o(a)", ParserEnv("o" -> function)).right.get.expr should equal(
+      DefExpr("a", CallExpr("o", function, Seq(RefExpr("a", function)))))
+  }
+  it should "fail to store an object with a recursive reference without a type definition" in {
+    val function = ObjectType("o", Seq(RefExpr("a", TypeRef("o"))), AnyType)
+    parseString("def a = o(a)", ParserEnv("o" -> function)).isLeft should equal(true)
+  }
 
   /* Functions */
   "A parser for functions" should "parse a function without parameters and body" in {

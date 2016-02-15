@@ -249,8 +249,11 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
     }
 
     for (i <- parameters.indices) {
-      if (!parameters(i).t.isChild(callParameters(i).t)) {
-        return false
+      (parameters(i), callParameters(i)) match {
+        case (RefExpr(parameterName, TypeRef(referenceName)), RefExpr(callName, ObjectType(objectName, _, _)))
+          if referenceName == objectName => // Do nothing if the reference is recursive
+        case (parameter, call) if parameter.t.isChild(call.t) => // Do nothing if the parameters have the same type
+        case (_, _) => return false
       }
     }
     true

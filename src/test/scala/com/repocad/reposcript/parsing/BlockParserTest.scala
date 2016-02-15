@@ -13,18 +13,21 @@ class BlockParserTest extends ParsingTest {
     val tokens = Lexer.lex("a b c")
     (mockedSuccess.apply _).expects(where { (state: ExprState) => state.tokens.head.toString == "'c" }).once()
     parser.parseUntil[ExprState](ExprState(UnitExpr, ParserEnv(), tokens),
-      _.tokens.head.compare(SymbolToken("c")(Position.empty)) == 0, (first, second) => second,
+      _.tokens.head.compare(SymbolToken("b")(Position.empty)) == 0, (first, second) => second,
       (state, success, failure) => success.apply(state.copy(tokens = state.tokens.tail)), mockedSuccess, mockedFailure)
   }
   it should "parse until a character token" in {
     val tokens = Lexer.lex("a b c")
-    (mockedSuccess.apply _).expects(where { (state: ExprState) => { state.tokens.head.toString == "'b"}}).once()
-    parser.parseUntilToken[ExprState](ExprState(UnitExpr, ParserEnv(), tokens), "b", (first, second) => second,
+    (mockedSuccess.apply _).expects(where { (state: ExprState) => {
+      state.tokens.head.toString == "'b"
+    }
+    }).once()
+    parser.parseUntilToken[ExprState](ExprState(UnitExpr, ParserEnv(), tokens), "a", (first, second) => second,
       stateTailer, mockedSuccess, mockedFailure)
   }
   it should "parse until a punct token" in {
     val tokens = Lexer.lex("a b )")
-    (mockedSuccess.apply _).expects(where { (state: ExprState) => { state.tokens.head.toString == "[)]"}}).once()
+    (mockedSuccess.apply _).expects(where { (state: ExprState) => state.tokens.isEmpty }).once()
     parser.parseUntilToken[ExprState](ExprState(UnitExpr, ParserEnv(), tokens), ")", (first, second) => second,
       stateTailer, mockedSuccess, mockedFailure)
   }
