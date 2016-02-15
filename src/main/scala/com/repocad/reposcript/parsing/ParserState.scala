@@ -8,8 +8,12 @@ import com.repocad.reposcript.lexing.{LiveStream, Position, Token}
   * <pre>[[ParserState]] => [[ParserState]]</pre>.
   * A state can thus both be interpreted as the output of a parsing, but also as the input to any further parsing
   * steps. The default state of the [[Parser]] is the [[ExprState]] which parses normal expressions.
+  *
+  * @tparam T The type of the ParserState implementation.
   */
-abstract class ParserState {
+abstract class ParserState[T <: ParserState[T]] {
+
+  def copy(env: ParserEnv = env, tokens: LiveStream[Token] = tokens): T
 
   /**
     * The environment contained in this state.
@@ -32,16 +36,6 @@ abstract class ParserState {
 }
 
 /**
-  * A state for parsing blocks of [[Expr]] statements.
-  *
-  * @param block  The expressions within this state.
-  * @param env    The environment in the state.
-  * @param tokens The remaining tokens to parse.
-  */
-case class BlockState(block: BlockExpr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState
-
-
-/**
   * A state in the parsing where [[Token]]s are evaluated to a definition.
   *
   * @param name                The name of the thing being defined.
@@ -51,7 +45,9 @@ case class BlockState(block: BlockExpr, env: ParserEnv, tokens: LiveStream[Token
   * @param tokens              The remaining tokens to parse.
   */
 case class DefinitionState(name: String, parameters: Seq[RefExpr], recursiveParameters: Seq[String], env: ParserEnv,
-                           tokens: LiveStream[Token]) extends ParserState
+                           tokens: LiveStream[Token]) extends ParserState[DefinitionState] {
+  override def copy(env: ParserEnv, tokens: LiveStream[Token]): DefinitionState = copy(env = env, tokens = tokens)
+}
 
 /**
   * Helps construct [[DefinitionState]]s.
@@ -68,7 +64,9 @@ object DefinitionState {
   * @param env    The environment with the currenly stored values.
   * @param tokens The remaining tokens to parse.
   */
-case class ExprState(expr: Expr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState
+case class ExprState(expr: Expr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState {
+  override def copy(env: ParserEnv, tokens: LiveStream[Token]): Nothing = copy(env = env, tokens = tokens)
+}
 
 /**
   * Helps construct [[ParserState]] instantiations.
