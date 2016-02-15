@@ -201,7 +201,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
           case unknown => failure(Error.EXPECTED_OBJECT_ACCESS(state.expr.toString)(state.position))
         }
 
-      case PunctToken(name) :~: tail if name != ")" && name != "}" => parseSuffixFunction(name, state.copy(tokens = tail), success, failure)
+      case PunctToken(name) :~: tail if !"{}()".contains(name) => parseSuffixFunction(name, state.copy(tokens = tail), success, failure)
       case SymbolToken(name) :~: tail => parseSuffixFunction(name, state, success, failure)
 
       case _ => success(state)

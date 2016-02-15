@@ -32,9 +32,10 @@ class ReferenceTest extends ParsingTest {
   //  }
   it should "infer a super type of a typed argument in a function" in {
     val env = ParserEnv("Number" -> NumberType)
-    parseString("{ def a(b as Number) = 1 a(3) }", env) should equal(
-      Right(ExprState(BlockExpr(Seq(FunctionType("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)),
-        CallExpr("a", NumberType, Seq(NumberExpr(3))))), env))
+    val function = FunctionType("a", Seq(RefExpr("b", NumberType)), NumberType)
+    parseString("{ def a(b as Number) = 1 a(3) }", env).right.get.expr should equal(
+      BlockExpr(Seq(FunctionType("a", Seq(RefExpr("b", NumberType)), NumberExpr(1)),
+        CallExpr("a", NumberType, Seq(NumberExpr(3)))))
     )
   }
 
@@ -46,8 +47,8 @@ class ReferenceTest extends ParsingTest {
   }
   it should "parse expressions in parenthesis before others" in {
     parseString("(1 + 2) + 3").right.get.expr should equal(
-      CallExpr("+", NumberType, Seq(BlockExpr(Seq(
-        CallExpr("+", NumberType, Seq(NumberExpr(1), NumberExpr(2))))),
+      CallExpr("+", NumberType, Seq(
+        CallExpr("+", NumberType, Seq(NumberExpr(1), NumberExpr(2))),
         NumberExpr(3))
       )
     )
@@ -56,7 +57,7 @@ class ReferenceTest extends ParsingTest {
     parseString("1 + (2 + 3)").right.get.expr should equal(
       CallExpr("+", NumberType, Seq(
         NumberExpr(1),
-        BlockExpr(Seq(CallExpr("+", NumberType, Seq(NumberExpr(2), NumberExpr(3))))))
+        CallExpr("+", NumberType, Seq(NumberExpr(2), NumberExpr(3))))
       )
     )
   }
