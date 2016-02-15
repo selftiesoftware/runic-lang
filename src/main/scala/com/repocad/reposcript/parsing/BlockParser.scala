@@ -5,11 +5,11 @@ package com.repocad.reposcript.parsing
   */
 trait BlockParser {
 
-  def parseUntil[T <: ParserState](startState: T, condition: T => Boolean,
-                                   accumulate: (T, T) => T,
-                                   parseFunction: ParserFunction[T],
-                                   success: SuccessCont[T],
-                                   failure: FailureCont[T]): Value[T] = {
+  def parseUntil[T <: ParserState[T]](startState: T, condition: T => Boolean,
+                                      accumulate: (T, T) => T,
+                                      parseFunction: ParserFunction[T],
+                                      success: SuccessCont[T],
+                                      failure: FailureCont[T]): Value[T] = {
     /*
     Implementation note: This is done procedurally to avoid stack overflows with too deep recursion.
      */
@@ -25,13 +25,17 @@ trait BlockParser {
     }
     currentState match {
       case Left(error) => failure(error)
-      case Right(state) => success(state)
+      case Right(state) => if (!state.tokens.isPlugged) {
+        success(state.withTokens(state.tokens.tail))
+      } else {
+        success(state)
+      }
     }
   }
 
-  def parseUntilToken[T <: ParserState](state: T, token: String, accumulate: (T, T) => T,
-                                        parseFunction: ParserFunction[T], success: SuccessCont[T],
-                                        failure: FailureCont[T]): Value[T] = {
+  def parseUntilToken[T <: ParserState[T]](state: T, token: String, accumulate: (T, T) => T,
+                                           parseFunction: ParserFunction[T], success: SuccessCont[T],
+                                           failure: FailureCont[T]): Value[T] = {
     def stripToken(string: String): String = string match {
       case symbol if symbol.startsWith("'") => symbol.substring(1)
       case brackets if brackets.startsWith("[") && brackets.endsWith("]") => brackets.substring(1, brackets.length - 1)

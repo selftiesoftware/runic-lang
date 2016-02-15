@@ -13,7 +13,7 @@ import com.repocad.reposcript.lexing.{LiveStream, Position, Token}
   */
 abstract class ParserState[T <: ParserState[T]] {
 
-  def copy(env: ParserEnv = env, tokens: LiveStream[Token] = tokens): T
+  def withTokens(tokens: LiveStream[Token] = tokens): T
 
   /**
     * The environment contained in this state.
@@ -46,7 +46,7 @@ abstract class ParserState[T <: ParserState[T]] {
   */
 case class DefinitionState(name: String, parameters: Seq[RefExpr], recursiveParameters: Seq[String], env: ParserEnv,
                            tokens: LiveStream[Token]) extends ParserState[DefinitionState] {
-  override def copy(env: ParserEnv, tokens: LiveStream[Token]): DefinitionState = copy(env = env, tokens = tokens)
+  override def withTokens(tokens: LiveStream[Token] = tokens): DefinitionState = copy(tokens = tokens)
 }
 
 /**
@@ -64,8 +64,8 @@ object DefinitionState {
   * @param env    The environment with the currenly stored values.
   * @param tokens The remaining tokens to parse.
   */
-case class ExprState(expr: Expr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState {
-  override def copy(env: ParserEnv, tokens: LiveStream[Token]): Nothing = copy(env = env, tokens = tokens)
+case class ExprState(expr: Expr, env: ParserEnv, tokens: LiveStream[Token]) extends ParserState[ExprState] {
+  override def withTokens(tokens: LiveStream[Token] = tokens): ExprState = copy(tokens = tokens)
 }
 
 /**

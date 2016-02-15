@@ -6,12 +6,12 @@ package com.repocad.reposcript
   */
 package object parsing {
 
-  type Value[T <: ParserState] = Either[Error, T]
+  type Value[T <: ParserState[T]] = Either[Error, T]
 
-  type FailureCont[T <: ParserState] = Error => Value[T]
-  type SuccessCont[T <: ParserState] = T => Value[T]
+  type FailureCont[T <: ParserState[T]] = Error => Value[T]
+  type SuccessCont[T <: ParserState[T]] = T => Value[T]
 
-  type ParserFunction[T <: ParserState] = (T, SuccessCont[T], FailureCont[T]) => Value[T]
+  type ParserFunction[T <: ParserState[T]] = (T, SuccessCont[T], FailureCont[T]) => Value[T]
 
   lazy val stringTypeMap: Map[String, AnyType] = Map(
     "Boolean" -> BooleanType,

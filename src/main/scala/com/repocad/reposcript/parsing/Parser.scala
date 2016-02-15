@@ -174,7 +174,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
     }, failure)
   }
 
-  private def parseReference(name: String, tail: LiveStream[Token], state: ParserState,
+  private def parseReference(name: String, tail: LiveStream[Token], state: ParserState[_],
                              success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] = {
     state.env.get(name) match {
       case Right(typeExpr: AnyType) => success(ExprState(RefExpr(name, typeExpr), state.env, tail))
