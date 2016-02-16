@@ -166,24 +166,24 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
           defaultParameters.toString())(position))
       } else {
         var verifiedDefaultParameters: Either[Error, Map[String, Expr]] = Right(Map())
-        if (defaultParameters.nonEmpty) {
+        if (parametersWithoutValue.nonEmpty) {
           var i = 0
-          while (i < parametersWithoutValue.size) {
-            if (verifiedDefaultParameters.isRight) {
-              val parameterWithoutValue = parametersWithoutValue(i)
-              val defaultParameter = defaultParameters(i)
-              verifiedDefaultParameters.right.flatMap(map => {
-                if (parameterWithoutValue.t.isChild(defaultParameter.t)) {
-                  Right(map + (parameterWithoutValue.name -> defaultParameter))
-                } else {
-                  Left(Error.TYPE_MISMATCH(parameterWithoutValue.t.toString, defaultParameter.t.toString,
-                    "setting default parameters for object " + objectName)(position))
-                }
-              })
-            }
+          while (i < parametersWithoutValue.size && verifiedDefaultParameters.isRight) {
+            val parameterWithoutValue = parametersWithoutValue(i)
+            val defaultParameter = defaultParameters(i)
+            println(i, parameterWithoutValue, defaultParameter)
+            verifiedDefaultParameters = verifiedDefaultParameters.right.flatMap(map => {
+              if (parameterWithoutValue.t.isChild(defaultParameter.t)) {
+                Right(map + (parameterWithoutValue.name -> defaultParameter))
+              } else {
+                Left(Error.TYPE_MISMATCH(parameterWithoutValue.t.toString, defaultParameter.t.toString,
+                  "setting default parameters for object " + objectName)(position))
+              }
+            })
             i = i + 1
           }
         }
+
         verifiedDefaultParameters.right.map(verifiedDefaultParameters => {
           val allParameters = parameters ++ verifiedDefaultParameters.map(t => RefExpr(t._1, t._2.t))
           ObjectType(objectName, allParameters, parent, verifiedDefaultParameters)
