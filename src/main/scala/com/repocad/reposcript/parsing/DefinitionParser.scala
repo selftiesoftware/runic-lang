@@ -52,6 +52,25 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
               // Extend objects
               //case SymbolToken("as")
 
+              case SymbolToken("extends") :~: SymbolToken(parent) :~: objectTail =>
+                startState.env.getAsType(parent, _.isInstanceOf[ObjectType]) match {
+                  case Right(parent : ObjectType) =>
+                    val hasParentParameters = parent.params.forall(parameter => parameterState.parameters.contains(parameter))
+                    if (!hasParentParameters) {
+                      Left(Error.EXPECTED_OBJECT_EXTENDS_PARAMETER(name, parent.toString, parent.params.toString(),
+                        parameterState.parameters.toString())(parameterState.position))
+                    } else {
+                      val objectExpr = ObjectType(name, parameterState.parameters, parent)
+                      success(ExprState(objectExpr, startState.env + (name -> objectExpr), objectTail))
+                    }
+
+                  case Right(element) => Left(Error.OBJECT_NOT_FOUND(parent)(parameterState.position))
+                  case Left(error) => Left(error.apply(parameterState.position))
+                }
+
+              case SymbolToken("extends") :~: parentTail =>
+                Left(Error.SYNTAX_ERROR("parent object name", parentTail.toString)(parentTail.head.position))
+
               case objectTail =>
                 val objectExpr: ObjectType =
                   ObjectType(name, parameterState.parameters/* ++ parameterState.recursiveParameters.map(

@@ -126,5 +126,14 @@ class DefinitionTest extends ParsingTest {
     val o1 = ObjectType("o1", Seq(), AnyType)
     parseString("def o2(o as o1)", ParserEnv("o1" -> o1)).right.get.expr should equal(ObjectType("o2", Seq(RefExpr("o", o1)), AnyType))
   }
+  it should "define objects as a subtype of another object" in {
+    val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
+    parseString("def child(a as Number) extends o", ParserEnv("o" -> parent, "Number" -> NumberType)).right.get.expr should equal(
+      ObjectType("child", Seq(RefExpr("a", NumberType)), parent))
+  }
+  it should "fail when subtypes forget parent parameters" in {
+    val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
+    parseString("def child(a) extends o", ParserEnv("o" -> parent)).isLeft should equal(true)
+  }
 
 }

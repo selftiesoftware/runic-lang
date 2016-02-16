@@ -19,6 +19,8 @@ object Error {
     Error(s"Expected parameters for function $name like $expected, but got $actual", position)
   def EXPECTED_OBJECT_ACCESS(actual: String)(implicit position : Position) : Error =
     Error(s"Expected access to object, but tried to access the expression $actual", position)
+  def EXPECTED_OBJECT_EXTENDS_PARAMETER(name : String, parent : String, expected : String, actual : String)(implicit position : Position) : Error =
+    Error(s"When extending object $parent parameters $expected needs to be defined for object $name. Received parameters: $actual", position)
   def EXPECTED_OBJECT_PARAMETERS(name : String, expected : String, actual : String)(implicit position : Position) : Error =
     Error(s"Expected call for the object $name like $expected, but got $actual", position)
   def EXPECTED_PARAMETERS(actual : String)(implicit position : Position) : Error =
