@@ -17,6 +17,7 @@ package object parsing {
     "Boolean" -> BooleanType,
     "Number" -> NumberType,
     "String" -> StringType,
+    "Type" -> AnyType,
     "Unit" -> UnitType
   )
 
