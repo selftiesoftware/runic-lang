@@ -54,9 +54,9 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
 
               case objectTail =>
                 val objectExpr: ObjectType =
-                  ObjectType(name, parameterState.parameters ++ parameterState.recursiveParameters.map(
+                  ObjectType(name, parameterState.parameters/* ++ parameterState.recursiveParameters.map(
                     parameterName => RefExpr(parameterName, TypeRef(name))
-                  ), AnyType)
+                  )*/, AnyType)
                 success(ExprState(objectExpr, startState.env + (name -> objectExpr), objectTail))
             }
 
@@ -99,9 +99,9 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
                               failure: FailureCont[DefinitionState]): Value[DefinitionState] = {
     state.tokens match {
       // Recursive parameter referencing the same name as the function / object being defined
-      case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail if typeName == state.name =>
-        success(DefinitionState(state.name, state.parameters, state.recursiveParameters :+ name,
-          state.env.+(name -> AnyType), tail))
+//      case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail if typeName == state.name =>
+//        success(DefinitionState(state.name, state.parameters, state.recursiveParameters :+ name,
+//          state.env.+(name -> AnyType), tail))
       // Regular non-recursive parameters...
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: tail =>
         state.env.getAsType(typeName, AnyType) match {

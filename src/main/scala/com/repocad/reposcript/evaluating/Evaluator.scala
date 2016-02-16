@@ -172,10 +172,9 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
           case x => Left("Expected callable function or object, got " + x)
         }
 
-      case ObjectType(name, params, _) => {
+      case ObjectType(name, params, _) =>
         val paramNames = params.map(_.name)
         Right(env.+(name -> paramNames), paramNames)
-      }
 
       case RefExpr(name, t) =>
         env.get(name).fold[Value](
@@ -206,7 +205,6 @@ class Evaluator(parser : Parser, defaultEnv : Env) {
           }
           foldRecursive(seq.expr.iterator, env)
         }
-
       case UnitExpr => Right(env -> Unit)
       case LoopExpr(loopCounterExpr: DefExpr, loopEnd : Expr, body: Expr) =>
         eval(loopCounterExpr.value, env) match {

@@ -45,14 +45,6 @@ class ExprTest extends FlatSpec with MockFactory with Matchers {
     evaluator.eval(RefFieldExpr(RefExpr("object", obj), "a", StringType), Map("object" -> params)) should equal(
       Right(Map("object" -> params), 12))
   }
-  it should "evaluate an object with recursive parameter references" in {
-    val obj = ObjectType("object", Seq(RefExpr("a", NumberType), RefExpr("b", TypeRef("object"))), AnyType)
-    val paramNames = obj.params.map(_.name)
-    val parameterA = NumberExpr(39.92)
-    val parameterB = RefExpr("object", AnyType)
-    evaluator.eval(CallExpr("object", obj, Seq(parameterA, parameterB)), Map("object" -> paramNames)
-    ) should equal(Right(Map("object" -> paramNames), Map("a" -> parameterA, "b" -> parameterB)))
-  }
 
   "A value evaluator" should "evaluate a boolean expression" in {
     evaluator.eval(BooleanExpr(false), emptyEnv) should equal(Right(emptyEnv -> false))
