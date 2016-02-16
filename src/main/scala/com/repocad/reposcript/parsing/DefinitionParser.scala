@@ -165,15 +165,19 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
         Left(Error.EXPECTED_PARAMETER_NUMBER(objectName, parametersWithoutValue.size + " default",
           defaultParameters.toString())(position))
       } else {
-        parametersWithoutValue.zip(defaultParameters).foldLeft[Either[Error, Map[String, Expr]]](Right(Map()))(
-          (either, t) => either.right.flatMap(map => {
-            if (t._1.t.isChild(t._2.t)) {
-              Right(map + (t._1.name -> t._2))
-            } else {
-              Left(Error.TYPE_MISMATCH(t._1.t.toString, t._2.t.toString,
-                "setting default parameters for object " + objectName)(position))
-            }
-          })).right.map(verifiedDefaultParameters => {
+        var verifiedDefaultParameters: Either[Error, Map[String, Expr]] = Right(Map())
+        if (defaultParameters.nonEmpty) {
+          verifiedDefaultParameters = parametersWithoutValue.zip(defaultParameters).foldLeft[Either[Error, Map[String, Expr]]](Right(Map()))(
+            (either, t) => either.right.flatMap(map => {
+              if (t._1.t.isChild(t._2.t)) {
+                Right(map + (t._1.name -> t._2))
+              } else {
+                Left(Error.TYPE_MISMATCH(t._1.t.toString, t._2.t.toString,
+                  "setting default parameters for object " + objectName)(position))
+              }
+            }))
+        }
+        verifiedDefaultParameters.right.map(verifiedDefaultParameters => {
           val allParameters = parameters ++ verifiedDefaultParameters.map(t => RefExpr(t._1, t._2.t))
           ObjectType(objectName, allParameters, parent, verifiedDefaultParameters)
         })
