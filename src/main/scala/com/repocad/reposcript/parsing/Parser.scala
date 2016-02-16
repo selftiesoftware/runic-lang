@@ -13,14 +13,20 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
 
   private val DEFAULT_LOOP_COUNTER = "counter"
 
-  private def accumulateExprState(first: ExprState, second: ExprState): ExprState = {
-    (first.expr, second.expr) match {
-      case (UnitExpr, _) => second
-      case (_, UnitExpr) => second.copy(expr = first.expr)
-      case (xs: BlockExpr, ys: BlockExpr) => second.copy(expr = BlockExpr(xs.expr ++ ys.expr))
-      case (xs: BlockExpr, y) => second.copy(expr = BlockExpr(xs.expr :+ y))
-      case (x, ys: BlockExpr) => second.copy(expr = BlockExpr(x +: ys.expr))
-      case (x, y) => second.copy(expr = BlockExpr(Seq(x, y)))
+  def extractParameters(original: Seq[RefExpr], parameters: Seq[Expr], defaultParameters: Map[String, Expr],
+                        errorFunction: String => Error, position: Position): Either[Error, Seq[Expr]] = {
+    val expectedSize = original.size
+    val actualSize = parameters.size + defaultParameters.size
+    if (expectedSize != actualSize) {
+      Left(errorFunction(s"$actualSize parameters and needed $expectedSize"))
+    } else {
+      val parameterIterator = parameters.iterator
+      val orderedParameters = original.map(reference => defaultParameters.getOrElse(reference.name, parameterIterator.next()))
+      if (verifySameParams(original, orderedParameters)) {
+        Right(orderedParameters)
+      } else {
+        Left(errorFunction(orderedParameters.toString))
+      }
     }
   }
 
@@ -94,32 +100,31 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
 
       // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        def parseCall(originalParameters: Seq[RefExpr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
+        def parseCall(originalParameters: Seq[RefExpr], defaultParameters: Map[String, Expr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
           parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), ")", accumulateExprState, parse, (parameterState: ExprState) => {
             val parameters: Seq[Expr] = parameterState.expr match {
               case BlockExpr(params) => params
               case UnitExpr => Seq()
               case expr => Seq(expr)
             }
-            if (verifySameParams(originalParameters, parameters)) {
-              success(ExprState(CallExpr(name, t, parameters), state.env, parameterState.tokens))
-            } else {
-              failure(errorFunction(parameters.toString))
-            }
+            extractParameters(originalParameters, parameters, defaultParameters, errorFunction, parameterState.position)
+              .fold(failure, verifiedParameters => {
+                success(ExprState(CallExpr(name, t, parameters), state.env, parameterState.tokens))
+              })
           }, failure)
         }
         state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
           case Right(function: FunctionType) =>
-            parseCall(function.params, function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
+            parseCall(function.params, Map(), function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
           case Right(ref: RefExpr) =>
             ref.t match {
-              case function: FunctionType => parseCall(function.params, function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
+              case function: FunctionType => parseCall(function.params, Map(), function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
               case notFunction => failure(Error.TYPE_MISMATCH("function", notFunction.toString, "calling " + name)(state.position))
             }
           case x => // Some(RefExpr) could be returned, so None does not cover this case entirely
             state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
               case Right(o: ObjectType) =>
-                parseCall(o.params, o, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
+                parseCall(o.params, o.defaultParameters, o, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
               case Left(_) => // Assume regular reference
                 parseReference(name, tail, state, success, failure)
             }

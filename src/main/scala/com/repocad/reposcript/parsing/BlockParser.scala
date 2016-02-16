@@ -5,6 +5,17 @@ package com.repocad.reposcript.parsing
   */
 trait BlockParser {
 
+  def accumulateExprState(first: ExprState, second: ExprState): ExprState = {
+    (first.expr, second.expr) match {
+      case (UnitExpr, _) => second
+      case (_, UnitExpr) => second.copy(expr = first.expr)
+      case (xs: BlockExpr, ys: BlockExpr) => second.copy(expr = BlockExpr(xs.expr ++ ys.expr))
+      case (xs: BlockExpr, y) => second.copy(expr = BlockExpr(xs.expr :+ y))
+      case (x, ys: BlockExpr) => second.copy(expr = BlockExpr(x +: ys.expr))
+      case (x, y) => second.copy(expr = BlockExpr(Seq(x, y)))
+    }
+  }
+
   def parseUntil[T <: ParserState[T]](startState: T, condition: T => Boolean,
                                       accumulate: (T, T) => T,
                                       parseFunction: ParserFunction[T],

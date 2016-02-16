@@ -25,8 +25,8 @@ object Error {
     Error(s"Expected call for the object $name like $expected, but got $actual", position)
   def EXPECTED_PARAMETERS(actual : String)(implicit position : Position) : Error =
     Error(s"Expected parameter list when creating a function or object, but received '$actual'", position)
-  def EXPECTED_PARAMETER_NUMBER(functionName : String, expected : Int, actual : Int)(implicit position : Position) : Error =
-    Error(s"Function '$functionName' requires $expected parameters, but $actual was given", position)
+  def EXPECTED_PARAMETER_NUMBER(functionName : String, expected : String, actual : String)(implicit position : Position) : Error =
+    Error(s"'$functionName' requires $expected parameters, but $actual was given", position)
   def EXPECTED_TYPE_PARAMETERS(name : String)(implicit position : Position) : Error =
     Error(s"No type information for variable $name; please specify its type using '$name as [Type]'", position)
 

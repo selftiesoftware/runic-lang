@@ -80,4 +80,17 @@ class ReferenceTest extends ParsingTest {
       CallExpr("g", NumberType, Seq()))
   }
 
+  "Object referencing" should "call a previously defined object" in {
+    val t = ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType)
+    parseString("object(12)", ParserEnv("object" -> t)).right.get.expr should equal(
+      CallExpr("object", t, Seq(NumberExpr(12))))
+  }
+  it should "call an object with default parameters" in {
+    val parent = ObjectType("parent", Seq(RefExpr("a", NumberType)), AnyType)
+    val obj = ObjectType("object", Seq(RefExpr("a", NumberType), RefExpr("b", StringType)), parent, Map("a" -> NumberExpr(9)))
+    parseString("obj(\"Hola!\")", ParserEnv("parent" -> parent, "obj" -> obj)).right.get.expr should equal(
+      CallExpr("obj", obj, Seq(StringExpr("Hola!")))
+    )
+  }
+
 }

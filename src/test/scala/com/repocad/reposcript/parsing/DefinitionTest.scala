@@ -79,18 +79,13 @@ class DefinitionTest extends ParsingTest {
   }
 
   /* Objects */
-  "A object parser" should "create an object and a type" in {
+  "An object parser" should "create an object and a type" in {
     parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get.expr should equal(
       ObjectType("object", Seq(RefExpr("a", AnyType)), AnyType))
   }
   it should "store the object in the environment" in {
     parseString("def object(a as Any)", ParserEnv("Any" -> AnyType)).right.get.env should equal(
       ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", AnyType)), AnyType), "Any" -> AnyType))
-  }
-  it should "call a previously defined object" in {
-    val t = ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType)
-    parseString("object(12)", ParserEnv("object" -> t)).right.get.expr should equal(
-      CallExpr("object", t, Seq(NumberExpr(12))))
   }
   it should "fail when calling an object with the wrong parameter type" in {
     parseString("object(\"string\")", ParserEnv("object" -> ObjectType("object", Seq(RefExpr("a", NumberType)), AnyType))).isLeft should equal(true)
@@ -133,7 +128,13 @@ class DefinitionTest extends ParsingTest {
   }
   it should "fail when subtypes forget parent parameters" in {
     val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
-    parseString("def child(a) extends o", ParserEnv("o" -> parent)).isLeft should equal(true)
+    parseString("def child() extends o", ParserEnv("o" -> parent)).isLeft should equal(true)
+  }
+  it should "give default arguments to a supertype" in {
+    val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
+    parseString("def child() extends o(7)", ParserEnv("o" -> parent)).right.get.expr should equal(
+      ObjectType("child", Seq(RefExpr("a", NumberType)), parent, Map("a" -> NumberExpr(7)))
+    )
   }
 
 }
