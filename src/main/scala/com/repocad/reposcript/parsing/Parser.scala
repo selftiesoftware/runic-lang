@@ -98,6 +98,14 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
       case PunctToken("(") :~: tail =>
         parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), ")", accumulateExprState, parse, success, failure)
 
+      // Values
+      case BooleanToken(value: Boolean) :~: tail => success(ExprState(BooleanExpr(value), state.env, tail))
+      case SymbolToken("false") :~: tail => success(ExprState(BooleanExpr(false), state.env, tail))
+      case SymbolToken("true") :~: tail => success(ExprState(BooleanExpr(true), state.env, tail))
+      case DoubleToken(value: Double) :~: tail => success(ExprState(NumberExpr(value), state.env, tail))
+      case IntToken(value: Int) :~: tail => success(ExprState(NumberExpr(value), state.env, tail))
+      case StringToken(value: String) :~: tail => success(ExprState(StringExpr(value), state.env, tail))
+
       // Calls to functions or objects
       case SymbolToken(name) :~: PunctToken("(") :~: tail =>
         def parseCall(originalParameters: Seq[RefExpr], defaultParameters: Map[String, Expr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
@@ -129,14 +137,6 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
                 parseReference(name, tail, state, success, failure)
             }
         }
-
-      // Values
-      case BooleanToken(value: Boolean) :~: tail => success(ExprState(BooleanExpr(value), state.env, tail))
-      case SymbolToken("false") :~: tail => success(ExprState(BooleanExpr(false), state.env, tail))
-      case SymbolToken("true") :~: tail => success(ExprState(BooleanExpr(true), state.env, tail))
-      case DoubleToken(value: Double) :~: tail => success(ExprState(NumberExpr(value), state.env, tail))
-      case IntToken(value: Int) :~: tail => success(ExprState(NumberExpr(value), state.env, tail))
-      case StringToken(value: String) :~: tail => success(ExprState(StringExpr(value), state.env, tail))
 
       // References to values, functions or objects
       case SymbolToken(name) :~: tail => parseReference(name, tail, state, success, failure)

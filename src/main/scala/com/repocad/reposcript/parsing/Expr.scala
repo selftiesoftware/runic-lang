@@ -32,7 +32,8 @@ case class NumberExpr(value : Double) extends ValueExpr[Double] { val t = Number
  * The type from where all data types in RepoScript inherit.
  */
 trait AnyType extends Expr {
-  val t = AnyType
+  self =>
+  val t = self
   val parent : AnyType
 
   def findCommonParent(that : AnyType): AnyType = {

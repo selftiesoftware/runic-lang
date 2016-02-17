@@ -54,6 +54,21 @@ sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
         }
     }
   }
+  def getCallableWithParameters(key : String, params: Seq[AnyType]) : Either[Position => Error, AnyType] = {
+    innerEnv.get(key) match {
+      case None => Left(position => Error.TYPE_NOT_FOUND(key)(position))
+      case Some(map) =>
+        val matches = map.filter({
+          case (function : FunctionType, _) => function.params.map(_.t) == params
+          case (obj : ObjectType, _) => obj.params.map(_.t) == params
+        })
+        matches.size match {
+          case 0 => Left(position => Error.REFERENCE_NOT_FOUND(key, Some(params))(position))
+          case 1 => Right(matches.head._1)
+          case n => Left(position => Error.AMBIGUOUS_TYPES(key, matches)(position))
+        }
+    }
+  }
 
   def -(key : String, typ : AnyType) : ParserEnv = {
     val newInner : Map[String, Map[AnyType, Expr]] = innerEnv.get(key).map(_.filter(t => !typ.isChild(t._1))) match {
@@ -72,7 +87,10 @@ object ParserEnv {
 
   def apply() : ParserEnv  = empty
 
-  def apply(kvs : (String, Expr)*) : ParserEnv = ofMap(kvs.toMap)
+  def apply(kvs : (String, Expr)*) : ParserEnv = new ParserEnv(
+    kvs.foldLeft(Map[String, Map[AnyType, Expr]]())(
+      (map, t) => map.updated(t._1, map.getOrElse(t._1, Map()).+(t._2.t -> t._2))
+  ))
 
   val empty = new ParserEnv(Map())
 

@@ -45,8 +45,9 @@ object Error {
   def OBJECT_UNKNOWN_PARAMETER_NAME(objectName : String, accessor: String)(implicit position : Position) : Error =
     Error(s"No field in object $objectName by the name of $accessor", position)
 
-  def REFERENCE_NOT_FOUND(reference : String)(implicit position : Position) : Error =
-    Error(s"Could not find object '$reference'. Has it been defined?", position)
+  def REFERENCE_NOT_FOUND(reference : String, parameters : Option[Seq[AnyType]] = None)(implicit position : Position) : Error =
+    Error(s"Could not find object '$reference'${if (parameters.isDefined) s"with parameters ${parameters.get}" else ""}. " +
+      "Has it been defined?", position)
 
   def SYNTAX_ERROR(expected : String, actual : String)(implicit position : Position) : Error =
     Error(s"Syntax error: Expected '$expected', but found '$actual'", position)

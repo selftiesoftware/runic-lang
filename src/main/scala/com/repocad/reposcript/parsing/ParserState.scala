@@ -33,6 +33,7 @@ abstract class ParserState[T <: ParserState[T]] {
     */
   def position: Position = tokens.source.headOption.map(_.position).getOrElse(Position.end)
 
+
 }
 
 /**

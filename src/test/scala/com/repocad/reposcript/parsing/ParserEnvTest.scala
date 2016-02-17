@@ -20,7 +20,7 @@ class ParserEnvTest extends ParsingTest {
     val t = NumberType
     ParserEnv("x" -> NumberExpr(1)).-("x", AnyType) should equal(ParserEnv())
   }
-  it should "get functions with different types" in {
+  it should "get overloaded functions with different types" in {
     val function1 = FunctionType("f", Seq(), NumberType)
     val function2 = FunctionType("f", Seq(), UnitType)
     val parser = ParserEnv("f" -> function1, "f" -> function2)
@@ -47,6 +47,21 @@ class ParserEnvTest extends ParsingTest {
   it should "return the referred expression in a reference" in {
     val env = ParserEnv("a" -> NumberExpr(3), "r" -> RefExpr("a", NumberType))
     env.get("r") should equal(Right(RefExpr("a", NumberType)))
+  }
+  it should "store ambiguous types" in {
+    val function1 = FunctionType("a", Seq(), UnitExpr)
+    val function2 = FunctionType("a", Seq(RefExpr("b", NumberType)), UnitExpr)
+    ParserEnv("a" -> function1, "a" -> function2).getAll("a").size should equal(2)
+  }
+  it should "fail when getting ambiguous type" in {
+    val function1 = FunctionType("a", Seq(), UnitExpr)
+    val function2 = FunctionType("a", Seq(RefExpr("b", NumberType)), UnitExpr)
+    ParserEnv("a" -> function1, "a" -> function2).get("a").isLeft should equal(true)
+  }
+  it should "get ambiguous callables from their parameterTypes" in {
+    val function1 = FunctionType("a", Seq(RefExpr("b", StringType)), UnitExpr)
+    val function2 = FunctionType("a", Seq(RefExpr("b", NumberType)), UnitExpr)
+    ParserEnv("a" -> function1, "a" -> function2).getCallableWithParameters("a", Seq(NumberType)) should equal(Right(function2))
   }
 
 }

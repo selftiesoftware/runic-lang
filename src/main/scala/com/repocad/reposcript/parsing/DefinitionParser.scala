@@ -55,6 +55,8 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
                     parentState.expr match {
                       case BlockExpr(parentParmeters) =>
                         parseObject(name, parameterState.copy(env = startState.env, tokens = parentState.tokens), Some(parent -> parentParmeters), success, failure)
+                      case UnitExpr =>
+                        parseObject(name, parameterState.copy(env = startState.env, tokens = parentState.tokens), Some(parent -> Seq()), success, failure)
                       case expr: Expr =>
                         parseObject(name, parameterState.copy(env = startState.env, tokens = parentState.tokens), Some(parent -> Seq(expr)), success, failure)
                     }
@@ -138,8 +140,12 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
       case Some((parentName, parentParameters)) =>
         parameterState.env.getAsType(parentName, _.isInstanceOf[ObjectType]) match {
           case Right(parent: ObjectType) =>
-            createObjectFromParameters(name, parent, parameterState.parameters, parentParameters, parameterState.position)
-              .right.flatMap(obj => success(ExprState(obj, parameterState.env + (name -> obj), parameterState.tokens)))
+            createObjectFromParameters(name, parent, parameterState.parameters, parentParameters, parameterState.position) match {
+              case Right(obj) => success(ExprState(obj, parameterState.env + (name -> obj), parameterState.tokens))
+              case Left(error) => failure(error)
+            }
+          //              .right.flatMap(obj => success(ExprState(obj, parameterState.env + (name -> obj), parameterState.tokens)))
+          //success(ExprState(UnitExpr, parameterState.env, parameterState.tokens))
 
           case Right(element) => failure(Error.OBJECT_NOT_FOUND(parentName)(parameterState.position))
           case Left(error) => failure(error.apply(parameterState.position))
@@ -161,27 +167,27 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
         actualParameters.toString)(position))
     } else {
       val parametersWithoutValue = parent.params.filter(t => !parameters.contains(t))
+
       if (parametersWithoutValue.size != defaultParameters.size) {
         Left(Error.EXPECTED_PARAMETER_NUMBER(objectName, parametersWithoutValue.size + " default",
           defaultParameters.toString())(position))
       } else {
+
+        // Verify default parameters (and implicitly the object parameters)
         var verifiedDefaultParameters: Either[Error, Map[String, Expr]] = Right(Map())
-        if (parametersWithoutValue.nonEmpty) {
-          var i = 0
-          while (i < parametersWithoutValue.size && verifiedDefaultParameters.isRight) {
-            val parameterWithoutValue = parametersWithoutValue(i)
-            val defaultParameter = defaultParameters(i)
-            println(i, parameterWithoutValue, defaultParameter)
-            verifiedDefaultParameters = verifiedDefaultParameters.right.flatMap(map => {
-              if (parameterWithoutValue.t.isChild(defaultParameter.t)) {
-                Right(map + (parameterWithoutValue.name -> defaultParameter))
-              } else {
-                Left(Error.TYPE_MISMATCH(parameterWithoutValue.t.toString, defaultParameter.t.toString,
-                  "setting default parameters for object " + objectName)(position))
-              }
-            })
-            i = i + 1
+        var i = 0
+        while (i < parametersWithoutValue.size && verifiedDefaultParameters.isRight) {
+          val parameterWithoutValue = parametersWithoutValue(i)
+          val defaultParameter = defaultParameters(i)
+          if (parameterWithoutValue.t.isChild(defaultParameter.t)) {
+            verifiedDefaultParameters =
+              Right(verifiedDefaultParameters.right.get + (parameterWithoutValue.name -> defaultParameter))
+          } else {
+            verifiedDefaultParameters =
+              Left(Error.TYPE_MISMATCH(parameterWithoutValue.t.toString, defaultParameter.t.toString,
+                "setting default parameters for object " + objectName)(position))
           }
+          i = i + 1
         }
 
         verifiedDefaultParameters.right.map(verifiedDefaultParameters => {

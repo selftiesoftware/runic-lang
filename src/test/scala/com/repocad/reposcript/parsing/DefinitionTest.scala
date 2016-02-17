@@ -136,5 +136,15 @@ class DefinitionTest extends ParsingTest {
       ObjectType("child", Seq(RefExpr("a", NumberType)), parent, Map("a" -> NumberExpr(7)))
     )
   }
+  it should "allow to instantiate supertypes with zero parameters" in {
+    val parent = ObjectType("o", Seq(), AnyType)
+    parseString("def child() extends o()", ParserEnv("o" -> parent)).right.get.expr should equal(
+      ObjectType("child", Seq(), parent)
+    )
+  }
+  it should "fail when giving a parameter with a wrong type to a supertype" in {
+    val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
+    parseString("def child() extends o(\"text\")", ParserEnv("o" -> parent)).isLeft should equal(true)
+  }
 
 }
