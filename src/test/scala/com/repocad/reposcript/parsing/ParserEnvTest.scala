@@ -63,5 +63,10 @@ class ParserEnvTest extends ParsingTest {
     val function2 = FunctionType("a", Seq(RefExpr("b", NumberType)), UnitExpr)
     ParserEnv("a" -> function1, "a" -> function2).getCallableWithParameters("a", Seq(NumberType)) should equal(Right(function2))
   }
+  it should "get ambiguous callables from subtypes of their parameters" in {
+    val function1 = FunctionType("a", Seq(RefExpr("b", StringType)), UnitExpr)
+    val function2 = FunctionType("a", Seq(RefExpr("b", AnyType)), UnitExpr)
+    ParserEnv("a" -> function1, "a" -> function2).getCallableWithParameters("a", Seq(NumberType)) should equal(Right(function2))
+  }
 
 }

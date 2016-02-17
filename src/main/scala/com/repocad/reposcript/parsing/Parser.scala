@@ -13,23 +13,6 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
 
   private val DEFAULT_LOOP_COUNTER = "counter"
 
-  def extractParameters(original: Seq[RefExpr], parameters: Seq[Expr], defaultParameters: Map[String, Expr],
-                        errorFunction: String => Error, position: Position): Either[Error, Seq[Expr]] = {
-    val expectedSize = original.size
-    val actualSize = parameters.size + defaultParameters.size
-    if (expectedSize != actualSize) {
-      Left(errorFunction(s"$actualSize parameters and needed $expectedSize"))
-    } else {
-      val parameterIterator = parameters.iterator
-      val orderedParameters = original.map(reference => defaultParameters.getOrElse(reference.name, parameterIterator.next()))
-      if (verifySameParams(original, orderedParameters)) {
-        Right(orderedParameters)
-      } else {
-        Left(errorFunction(orderedParameters.toString))
-      }
-    }
-  }
-
   def parse(tokens: LiveStream[Token]): Value[ExprState] = {
     parse(tokens, spillEnvironment = false)
   }
@@ -107,7 +90,8 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
       case StringToken(value: String) :~: tail => success(ExprState(StringExpr(value), state.env, tail))
 
       // Calls to functions or objects
-      case SymbolToken(name) :~: PunctToken("(") :~: tail => parseCallable(name, state.copy(expr = UnitExpr, tokens = tail), success, failure)
+      case SymbolToken(name) :~: PunctToken("(") :~: tail =>
+        parseCallable(name, state.copy(expr = UnitExpr, tokens = state.tokens.tail), success, failure)
 
       // References to values, functions or objects
       case SymbolToken(name) :~: tail => parseReference(name, state.copy(tokens = tail), success, failure)
@@ -118,38 +102,24 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
     }
   }
 
-  private def parseCallable(name: String, state: ExprState, success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] = {
-    def parseCall(originalParameters: Seq[RefExpr], defaultParameters: Map[String, Expr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
-      parseUntilToken[ExprState](state, ")", accumulateExprState, parse, (parameterState: ExprState) => {
-        val parameters: Seq[Expr] = parameterState.expr match {
-          case BlockExpr(params) => params
-          case UnitExpr => Seq()
-          case expr => Seq(expr)
-        }
-        extractParameters(originalParameters, parameters, defaultParameters, errorFunction, parameterState.position)
-          .fold(failure, verifiedParameters => {
-            success(ExprState(CallExpr(name, t, parameters), state.env, parameterState.tokens))
-          })
-      }, failure)
-    }
-    state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
-      case Right(function: FunctionType) =>
-        parseCall(function.params, Map(), function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
-      case Right(ref: RefExpr) =>
-        ref.t match {
-          case function: FunctionType => parseCall(function.params, Map(), function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
-          case notFunction => failure(Error.TYPE_MISMATCH("function", notFunction.toString, "calling " + name)(state.position))
-        }
-      case x => // Some(RefExpr) could be returned, so None does not cover this case entirely
-        state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
-          case Right(o: ObjectType) =>
-            parseCall(o.params, o.defaultParameters, o, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
-          case Left(_) => // Assume regular reference
-            parseReference(name, state, success, failure)
-        }
-    }
-
-  }
+  private def parseCallable(name: String, state: ExprState, success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] =
+    parseUntilToken[ExprState](state.copy(tokens = state.tokens.tail), ")", accumulateExprState, parse, (parameterState: ExprState) => {
+      val parameters: Seq[Expr] = parameterState.expr match {
+        case BlockExpr(params) => params
+        case UnitExpr => Seq()
+        case expr => Seq(expr)
+      }
+      state.env.getCallableWithParameters(name, parameters) match {
+        case Right(function: FunctionType) => success(ExprState(CallExpr(name, function.returnType, parameters), state.env, parameterState.tokens))
+        case Right(obj: ObjectType) => success(ExprState(CallExpr(name, obj, parameters), state.env, parameterState.tokens))
+        // If a callable is not found, but a function or object of the same name exists, throw
+        case Left(errorFunction) if state.env.getAsType(name, _.isInstanceOf[CallableType]).isRight =>
+          failure(errorFunction(state.position))
+        // If a callable is not found, it might also be a regular reference to a variable
+        case Left(errorFunction) =>
+          parseReference(name, state, success, failure)
+      }
+    }, failure)
 
   private def parseLoop(state: ExprState, success: SuccessCont[ExprState],
                         failure: FailureCont[ExprState]): Value[ExprState] = {
@@ -249,19 +219,6 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
       case _ => success(state)
     }
 
-  }
-
-  private def verifySameParams(parameters: Seq[RefExpr], callParameters: Seq[Expr]): Boolean = {
-    if (parameters.size != callParameters.size) {
-      return false
-    }
-
-    for (i <- parameters.indices) {
-      if (!parameters(i).t.isChild(callParameters(i).t)) {
-        return false
-      }
-    }
-    true
   }
 
 }

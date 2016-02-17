@@ -8,9 +8,8 @@ import com.repocad.reposcript.lexing.Position
 case class Error(message : String, position : Position)
 
 object Error {
-  def AMBIGUOUS_TYPES(key: String, matches: Map[AnyType, Expr])(implicit position : Position) : Error =
+  def AMBIGUOUS_TYPES[T <: AnyType](key: String, matches: Map[T, Expr])(implicit position : Position) : Error =
     Error(s"${matches.size} matches found that matches types under the name $key. Please specify the type or remove the type restriction. Following ambiguous matches found: $matches", position)
-
 
   def ASSIGNMENT_TYPE_MISMATCH(name : String, parentType: AnyType, assignment : Expr)(implicit position : Position) : Error =
     Error(s"'$name' has the expected type $parentType, but was assigned to type ${assignment.t}", position)
@@ -45,7 +44,7 @@ object Error {
   def OBJECT_UNKNOWN_PARAMETER_NAME(objectName : String, accessor: String)(implicit position : Position) : Error =
     Error(s"No field in object $objectName by the name of $accessor", position)
 
-  def REFERENCE_NOT_FOUND(reference : String, parameters : Option[Seq[AnyType]] = None)(implicit position : Position) : Error =
+  def REFERENCE_NOT_FOUND(reference : String, parameters : Option[Seq[Expr]] = None)(implicit position : Position) : Error =
     Error(s"Could not find object '$reference'${if (parameters.isDefined) s"with parameters ${parameters.get}" else ""}. " +
       "Has it been defined?", position)
 

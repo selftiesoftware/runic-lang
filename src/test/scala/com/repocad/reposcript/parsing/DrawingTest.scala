@@ -9,7 +9,6 @@ class DrawingTest extends ParsingTest with MockFactory {
   val env = Environment.parserEnv
 
   "A parser using default drawing environments" should "parse an arc call" in {
-    println(parseString("arc(1 2 3 4 5)", env))
     parseString("arc(1 2 3 4 5)", env).right.get.expr should equal(CallExpr("arc", UnitType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(4), NumberExpr(5))))
   }
   it should "parse a bezier curve call" in {

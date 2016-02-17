@@ -8,41 +8,43 @@ import com.repocad.reposcript.lexing.Position
   * Because of the possibility to overload expressions, ``get`` operations from this environment risks to cause a
   * [[Error]], if more than one expression matches the query.
   */
-sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
+sealed case class ParserEnv(innerEnv: Map[String, Map[AnyType, Expr]]) {
 
-  def +(kv : (String, Expr)) : ParserEnv = {
+  def +(kv: (String, Expr)): ParserEnv = {
     val key = kv._1
-    val typ : AnyType = kv._2 match {
+    val typ: AnyType = kv._2 match {
       case anyType: AnyType => anyType
       case _ => kv._2.t
     }
     val value = kv._2
-    val newOverloaded : Map[AnyType, Expr] = innerEnv.get(key) match {
+    val newOverloaded: Map[AnyType, Expr] = innerEnv.get(key) match {
       case None => Map(typ -> value)
       case Some(overloaded) => overloaded.filter(t => !typ.isChild(t._1)).+(typ -> value)
     }
     new ParserEnv(innerEnv.updated(key, newOverloaded))
   }
 
-  def ++(kvs : Traversable[(String, Expr)]) : ParserEnv = {
+  def ++(kvs: Traversable[(String, Expr)]): ParserEnv = {
     kvs.foldLeft(this)((env, kv) => env.+(kv))
   }
 
-  def ++(thatEnv : ParserEnv) : ParserEnv = {
+  def ++(thatEnv: ParserEnv): ParserEnv = {
     thatEnv.toMap.foldLeft(this)((thisEnv, thatEntry) => {
-      thatEnv.getAll(thatEntry._1).foldLeft(thisEnv)((thatEnv : ParserEnv, thatExpr : Expr) =>
+      thatEnv.getAll(thatEntry._1).foldLeft(thisEnv)((thatEnv: ParserEnv, thatExpr: Expr) =>
         thatEnv.+(thatEntry._1 -> thatExpr)
-      )})
+      )
+    })
   }
 
   def contains(name: String) = innerEnv.get(name).exists(_.nonEmpty)
 
-  def get(key : String) : Either[Position => Error, Expr] = getAsType(key, AnyType)
+  def get(key: String): Either[Position => Error, Expr] = getAsType(key, AnyType)
 
-  def getAll(key : String) : Iterable[Expr] = innerEnv.get(key).map(_.values).getOrElse(Iterable[Expr]())
+  def getAll(key: String): Iterable[Expr] = innerEnv.get(key).map(_.values).getOrElse(Iterable[Expr]())
 
-  def getAsType(key : String, typ : AnyType) : Either[Position => Error, Expr] = getAsType(key, t => typ.isChild(t))
-  def getAsType(key : String, f : AnyType => Boolean): Either[Position => Error, Expr] = {
+  def getAsType(key: String, typ: AnyType): Either[Position => Error, Expr] = getAsType(key, t => typ.isChild(t))
+
+  def getAsType(key: String, f: AnyType => Boolean): Either[Position => Error, Expr] = {
     innerEnv.get(key) match {
       case None => Left(position => Error.TYPE_NOT_FOUND(key)(position))
       case Some(map) =>
@@ -54,14 +56,16 @@ sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
         }
     }
   }
-  def getCallableWithParameters(key : String, params: Seq[AnyType]) : Either[Position => Error, AnyType] = {
+
+  def getCallableWithParameters(key: String, params: Seq[Expr]): Either[Position => Error, CallableType] = {
     innerEnv.get(key) match {
       case None => Left(position => Error.TYPE_NOT_FOUND(key)(position))
       case Some(map) =>
         val matches = map.filter({
-          case (function : FunctionType, _) => function.params.map(_.t) == params
-          case (obj : ObjectType, _) => obj.params.map(_.t) == params
-        })
+          case (function: FunctionType, _) => isSameTypes(function.params, params)
+          case (obj: ObjectType, _) => isSameTypes(obj.params, params)
+          case _ => false
+        }).asInstanceOf[Map[CallableType, Expr]]
         matches.size match {
           case 0 => Left(position => Error.REFERENCE_NOT_FOUND(key, Some(params))(position))
           case 1 => Right(matches.head._1)
@@ -70,11 +74,24 @@ sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
     }
   }
 
-  def -(key : String, typ : AnyType) : ParserEnv = {
-    val newInner : Map[String, Map[AnyType, Expr]] = innerEnv.get(key).map(_.filter(t => !typ.isChild(t._1))) match {
+  private def isSameTypes(expected: Seq[RefExpr], actual : Seq[Expr]) : Boolean = {
+    if (expected.size != actual.size) {
+      false
+    } else {
+      for (i <- expected.indices) {
+        if (!expected(i).t.isChild(actual(i).t)) {
+          return false
+        }
+      }
+      true
+    }
+  }
+
+  def -(key: String, typ: AnyType): ParserEnv = {
+    val newInner: Map[String, Map[AnyType, Expr]] = innerEnv.get(key).map(_.filter(t => !typ.isChild(t._1))) match {
       case None => innerEnv
-      case Some(xs : Map[AnyType, Expr]) if xs.isEmpty => innerEnv - key
-      case Some(xs : Map[AnyType, Expr]) => innerEnv.updated(key, xs)
+      case Some(xs: Map[AnyType, Expr]) if xs.isEmpty => innerEnv - key
+      case Some(xs: Map[AnyType, Expr]) => innerEnv.updated(key, xs)
     }
     new ParserEnv(newInner)
   }
@@ -85,15 +102,15 @@ sealed case class ParserEnv(innerEnv : Map[String, Map[AnyType, Expr]]) {
 
 object ParserEnv {
 
-  def apply() : ParserEnv  = empty
+  def apply(): ParserEnv = empty
 
-  def apply(kvs : (String, Expr)*) : ParserEnv = new ParserEnv(
+  def apply(kvs: (String, Expr)*): ParserEnv = new ParserEnv(
     kvs.foldLeft(Map[String, Map[AnyType, Expr]]())(
       (map, t) => map.updated(t._1, map.getOrElse(t._1, Map()).+(t._2.t -> t._2))
-  ))
+    ))
 
   val empty = new ParserEnv(Map())
 
-  def ofMap(map : Map[String, Expr]) : ParserEnv  = empty.++(map)
+  def ofMap(map: Map[String, Expr]): ParserEnv = empty.++(map)
 
 }

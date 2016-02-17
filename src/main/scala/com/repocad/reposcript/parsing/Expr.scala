@@ -75,12 +75,17 @@ case object AnyType extends AnyType {
 
 case object BooleanType extends AnyType { val parent = AnyType }
 case object NumberType extends AnyType { val parent = AnyType }
-case class ObjectType(name : String, params : Seq[RefExpr], parent : AnyType, defaultParameters : Map[String, Expr] = Map())
-  extends AnyType
 case object StringType extends AnyType { val parent = AnyType }
 case object UnitType extends AnyType { val parent = AnyType }
 
-case class FunctionType(name : String, params : Seq[RefExpr], body : Expr) extends AnyType {
+trait CallableType extends AnyType {
+  val name : String
+  val params : Seq[RefExpr]
+}
+
+case class FunctionType(name : String, params : Seq[RefExpr], body : Expr) extends CallableType {
   val parent = AnyType
   def returnType : AnyType = body.t
 }
+case class ObjectType(name : String, params : Seq[RefExpr], parent : AnyType,
+                      defaultParameters : Map[String, Expr] = Map()) extends CallableType

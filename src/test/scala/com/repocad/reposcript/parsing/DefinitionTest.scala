@@ -133,7 +133,7 @@ class DefinitionTest extends ParsingTest {
   it should "give default arguments to a supertype" in {
     val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
     parseString("def child() extends o(7)", ParserEnv("o" -> parent)).right.get.expr should equal(
-      ObjectType("child", Seq(RefExpr("a", NumberType)), parent, Map("a" -> NumberExpr(7)))
+      ObjectType("child", Seq(), parent, Map("a" -> NumberExpr(7)))
     )
   }
   it should "allow to instantiate supertypes with zero parameters" in {

@@ -191,8 +191,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
         }
 
         verifiedDefaultParameters.right.map(verifiedDefaultParameters => {
-          val allParameters = parameters ++ verifiedDefaultParameters.map(t => RefExpr(t._1, t._2.t))
-          ObjectType(objectName, allParameters, parent, verifiedDefaultParameters)
+          ObjectType(objectName, parameters, parent, verifiedDefaultParameters)
         })
       }
     }
