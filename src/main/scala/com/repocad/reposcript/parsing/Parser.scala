@@ -107,39 +107,10 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
       case StringToken(value: String) :~: tail => success(ExprState(StringExpr(value), state.env, tail))
 
       // Calls to functions or objects
-      case SymbolToken(name) :~: PunctToken("(") :~: tail =>
-        def parseCall(originalParameters: Seq[RefExpr], defaultParameters: Map[String, Expr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
-          parseUntilToken[ExprState](state.copy(expr = UnitExpr, tokens = tail), ")", accumulateExprState, parse, (parameterState: ExprState) => {
-            val parameters: Seq[Expr] = parameterState.expr match {
-              case BlockExpr(params) => params
-              case UnitExpr => Seq()
-              case expr => Seq(expr)
-            }
-            extractParameters(originalParameters, parameters, defaultParameters, errorFunction, parameterState.position)
-              .fold(failure, verifiedParameters => {
-                success(ExprState(CallExpr(name, t, parameters), state.env, parameterState.tokens))
-              })
-          }, failure)
-        }
-        state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
-          case Right(function: FunctionType) =>
-            parseCall(function.params, Map(), function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
-          case Right(ref: RefExpr) =>
-            ref.t match {
-              case function: FunctionType => parseCall(function.params, Map(), function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
-              case notFunction => failure(Error.TYPE_MISMATCH("function", notFunction.toString, "calling " + name)(state.position))
-            }
-          case x => // Some(RefExpr) could be returned, so None does not cover this case entirely
-            state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
-              case Right(o: ObjectType) =>
-                parseCall(o.params, o.defaultParameters, o, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
-              case Left(_) => // Assume regular reference
-                parseReference(name, tail, state, success, failure)
-            }
-        }
+      case SymbolToken(name) :~: PunctToken("(") :~: tail => parseCallable(name, state.copy(expr = UnitExpr, tokens = tail), success, failure)
 
       // References to values, functions or objects
-      case SymbolToken(name) :~: tail => parseReference(name, tail, state, success, failure)
+      case SymbolToken(name) :~: tail => parseReference(name, state.copy(tokens = tail), success, failure)
 
       case rest if rest.isEmpty => success(state.copy(UnitExpr, tokens = rest))
 
@@ -147,6 +118,38 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
     }
   }
 
+  private def parseCallable(name: String, state: ExprState, success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] = {
+    def parseCall(originalParameters: Seq[RefExpr], defaultParameters: Map[String, Expr], t: AnyType, errorFunction: String => Error): Value[ExprState] = {
+      parseUntilToken[ExprState](state, ")", accumulateExprState, parse, (parameterState: ExprState) => {
+        val parameters: Seq[Expr] = parameterState.expr match {
+          case BlockExpr(params) => params
+          case UnitExpr => Seq()
+          case expr => Seq(expr)
+        }
+        extractParameters(originalParameters, parameters, defaultParameters, errorFunction, parameterState.position)
+          .fold(failure, verifiedParameters => {
+            success(ExprState(CallExpr(name, t, parameters), state.env, parameterState.tokens))
+          })
+      }, failure)
+    }
+    state.env.getAsType(name, _.isInstanceOf[FunctionType]) match {
+      case Right(function: FunctionType) =>
+        parseCall(function.params, Map(), function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
+      case Right(ref: RefExpr) =>
+        ref.t match {
+          case function: FunctionType => parseCall(function.params, Map(), function.returnType, Error.EXPECTED_FUNCTION_PARAMETERS(name, function.params.toString, _)(state.position))
+          case notFunction => failure(Error.TYPE_MISMATCH("function", notFunction.toString, "calling " + name)(state.position))
+        }
+      case x => // Some(RefExpr) could be returned, so None does not cover this case entirely
+        state.env.getAsType(name, _.isInstanceOf[ObjectType]) match {
+          case Right(o: ObjectType) =>
+            parseCall(o.params, o.defaultParameters, o, Error.EXPECTED_OBJECT_PARAMETERS(name, o.params.toString, _)(state.position))
+          case Left(_) => // Assume regular reference
+            parseReference(name, state, success, failure)
+        }
+    }
+
+  }
 
   private def parseLoop(state: ExprState, success: SuccessCont[ExprState],
                         failure: FailureCont[ExprState]): Value[ExprState] = {
@@ -179,11 +182,11 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
     }, failure)
   }
 
-  private def parseReference(name: String, tail: LiveStream[Token], state: ParserState[_],
+  private def parseReference(name: String, state: ExprState,
                              success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] = {
     state.env.get(name) match {
-      case Right(typeExpr: AnyType) => success(ExprState(RefExpr(name, typeExpr), state.env, tail))
-      case Right(expr) => success(ExprState(RefExpr(name, expr.t), state.env, tail))
+      case Right(typeExpr: AnyType) => success(state.copy(expr = RefExpr(name, typeExpr)))
+      case Right(expr) => success(state.copy(expr = RefExpr(name, expr.t)))
       case Left(errorFunction) => failure(errorFunction(state.position))
     }
   }
