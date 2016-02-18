@@ -146,5 +146,13 @@ class DefinitionTest extends ParsingTest {
     val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
     parseString("def child() extends o(\"text\")", ParserEnv("o" -> parent)).isLeft should equal(true)
   }
+  it should "refer to an external value inside a nested object call" in {
+    val obj = ObjectType("o", Seq(RefExpr("x", NumberType)), AnyType)
+    val function = FunctionType("f", Seq(RefExpr("o", obj)), RefFieldExpr(RefExpr("o", obj), "x", NumberType))
+    parseStringAll("def v = 20 f(o(v))", ParserEnv("o" -> obj, "f" -> function)).right.get.expr should equal(
+      BlockExpr(Seq(DefExpr("v", NumberExpr(20)), CallExpr("f", NumberType, Seq(
+        CallExpr("o", obj, Seq(RefExpr("v", NumberType)))))))
+    )
+  }
 
 }

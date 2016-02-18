@@ -8,7 +8,8 @@ import com.repocad.reposcript.lexing.Position
 case class Error(message : String, position : Position)
 
 object Error {
-  def AMBIGUOUS_TYPES[T <: AnyType](key: String, matches: Map[T, Expr])(implicit position : Position) : Error =
+
+  def AMBIGUOUS_TYPES(key: String, matches: Map[_ <: AnyType, Expr])(implicit position : Position) : Error =
     Error(s"${matches.size} matches found that matches types under the name $key. Please specify the type or remove the type restriction. Following ambiguous matches found: $matches", position)
 
   def ASSIGNMENT_TYPE_MISMATCH(name : String, parentType: AnyType, assignment : Expr)(implicit position : Position) : Error =
