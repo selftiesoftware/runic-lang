@@ -99,5 +99,9 @@ class ReferenceTest extends ParsingTest {
       CallExpr("a", obj1, Seq(NumberExpr(20)))
     )
   }
+  it should "reference a field within an object when given as a function parameter" in {
+    val obj = ObjectType("a", Seq(RefExpr("x", NumberType)), AnyType)
+    println(parseString("def f(v as a) = v.x", ParserEnv("a" -> obj)))
+  }
 
 }

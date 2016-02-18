@@ -7,7 +7,7 @@ import com.repocad.reposcript.{Printer, _}
 /**
   * An evaluator to evaluate a list of [[Expr]]
   */
-class Evaluator(parser: Parser, defaultEnv: Env) {
+class Evaluator(parser: Parser, defaultEnv: EvaluatorEnv) {
 
   private val remoteCache: RemoteCache = parser.remoteCache
 
@@ -23,39 +23,64 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
     }
   }
 
-  def eval(expr: Expr, env: Env): Value = {
+  def eval(expr: Expr, env: EvaluatorEnv): Value = {
     expr match {
 
       case ImportExpr(name) =>
         remoteCache.get(name, Position.empty, code => parser.parse(Lexer.lex(code))).right.flatMap(state => {
-          val remotePrinterEnv: Env = env ++ Printer.emptyEvaluatorEnv
+          val remotePrinterEnv: EvaluatorEnv = env ++ Printer.emptyEvaluatorEnv
           eval(state.expr, remotePrinterEnv).right.map(t => (t._1 ++ env) -> t._2)
         }).left.map(_.toString)
 
       case v: ValueExpr[_] => Right(env -> v.value)
 
       case DefExpr(name, valExpr) =>
-        eval(valExpr, env).fold(Left(_), value => Right(env.+(name -> value._2) -> value._2))
+        eval(valExpr, env).fold(Left(_), value => Right(env.add(name, Nil, valExpr.t, value._2) -> value._2))
 
       case FunctionType(name, params, body) =>
         val function = params.size match {
-          case 0 => (funEnv: Env) => eval(body, funEnv).fold(l => l, r => r._2)
-          case 1 => (funEnv: Env, a: Any) => {
-            eval(body, funEnv.+(params.head.name -> a)).fold(l => l, r => r._2)
+          case 0 => (funEnv: EvaluatorEnv) => eval(body, funEnv).fold(l => l, r => r._2)
+          case 1 => (funEnv: EvaluatorEnv, a: Any) => {
+            eval(body, funEnv.add(params.head.name, Nil, params.head.t, a)).fold(l => l, r => r._2)
           }
-          case 2 => (funEnv: Env, a: Any, b: Any) =>
-            eval(body, funEnv.+(params.head.name -> a, params(1).name -> b)).fold(l => l, r => r._2)
-          case 3 => (funEnv: Env, a: Any, b: Any, c: Any) =>
-            eval(body, funEnv.+(params.head.name -> a, params(1).name -> b, params(2).name -> c)).fold(l => l, r => r._2)
-          case 4 => (funEnv: Env, a: Any, b: Any, c: Any, d: Any) =>
-            eval(body, funEnv.+(params.head.name -> a, params(1).name -> b, params(2).name -> c, params(3).name -> d)).fold(l => l, r => r._2)
-          case 5 => (funEnv: Env, a: Any, b: Any, c: Any, d: Any, e: Any) =>
-            eval(body, funEnv.+(params.head.name -> a, params(1).name -> b, params(2).name -> c, params(3).name -> d, params(4).name -> e)).fold(l => l, r => r._2)
-          case 6 => (funEnv: Env, a: Any, b: Any, c: Any, d: Any, e: Any, f: Any) =>
-            eval(body, funEnv.+(params.head.name -> a, params(1).name -> b, params(2).name -> c, params(3).name -> d, params(4).name -> e, params(5).name -> f)).fold(l => l, r => r._2)
+          case 2 => (funEnv: EvaluatorEnv, a: Any, b: Any) =>
+            eval(body, funEnv
+              .add(params.head.name, Nil, params.head.t, a)
+              .add(params(1).name, Nil, params(1).t, b)
+            ).fold(l => l, r => r._2)
+          case 3 => (funEnv: EvaluatorEnv, a: Any, b: Any, c: Any) =>
+            eval(body, funEnv
+              .add(params.head.name, Nil, params.head.t, a)
+              .add(params(1).name, Nil, params(1).t, b)
+              .add(params(2).name, Nil, params(2).t, c)
+            ).fold(l => l, r => r._2)
+          case 4 => (funEnv: EvaluatorEnv, a: Any, b: Any, c: Any, d: Any) =>
+            eval(body, funEnv
+              .add(params.head.name, Nil, params.head.t, a)
+              .add(params(1).name, Nil, params(1).t, b)
+              .add(params(2).name, Nil, params(2).t, c)
+              .add(params(3).name, Nil, params(3).t, d)
+            ).fold(l => l, r => r._2)
+          case 5 => (funEnv: EvaluatorEnv, a: Any, b: Any, c: Any, d: Any, e: Any) =>
+            eval(body, funEnv
+              .add(params.head.name, Nil, params.head.t, a)
+              .add(params(1).name, Nil, params(1).t, b)
+              .add(params(2).name, Nil, params(2).t, c)
+              .add(params(3).name, Nil, params(3).t, d)
+              .add(params(4).name, Nil, params(4).t, e)
+            ).fold(l => l, r => r._2)
+          case 6 => (funEnv: EvaluatorEnv, a: Any, b: Any, c: Any, d: Any, e: Any, f: Any) =>
+            eval(body, funEnv
+              .add(params.head.name, Nil, params.head.t, a)
+              .add(params(1).name, Nil, params(1).t, b)
+              .add(params(2).name, Nil, params(2).t, c)
+              .add(params(3).name, Nil, params(3).t, d)
+              .add(params(4).name, Nil, params(4).t, e)
+              .add(params(5).name, Nil, params(5).t, f)
+            ).fold(l => l, r => r._2)
           case x => Left("Unsupported number of arguments: " + x)
         }
-        Right(env.+(name -> function) -> function)
+        Right(env.add(name, params, body.t, function) -> function)
 
       case IfExpr(condition, ifBody, elseBody, t) =>
         eval(condition, env) match {
@@ -66,18 +91,14 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
         }
 
       case CallExpr(name, t, params) =>
-        env.get(name).fold[Value](Left(s"Failed to find a function or objects called '$name'. Please check if it has been declared.")) {
+        env.get(name, params, t).fold[Value](
+          Left(s"Failed to find a function or object called '$name'. Please ensure it has been declared.")) {
           case objectParams: Seq[String] =>
             if (params.size != objectParams.size) {
               Left(Error.OBJECT_PARAM_SIZE_NOT_EQUAL(name, objectParams.size, params.size))
             } else {
               val defaultParameters = getDefaultParameters(t)
-              val parameterIterator = params.iterator
-              val actualParameters : Map[String, Expr] = t.asInstanceOf[ObjectType].params
-                .map(reference => reference.name -> defaultParameters.getOrElse(reference.name, parameterIterator.next))
-                .toMap
-
-              val evaluatedParameters = actualParameters.map(t => t._1 -> eval(t._2, env))
+              val evaluatedParameters = (objectParams.zip(params).toMap ++ defaultParameters).map(t => t._1 -> eval(t._2, env))
               val lefts = evaluatedParameters.filter(t => t._2.isLeft)
               if (lefts.nonEmpty) {
                 Left(Error.OBJECT_PARAM_EVAL_ERROR(name, lefts.values.toSeq))
@@ -86,16 +107,16 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
               }
             }
 
-          case f: ((Env) => Any) => Right(env -> f(env))
-          case f: ((Env, Any) => Any) =>
+          case f: ((EvaluatorEnv) => Any) => Right(env -> f(env))
+          case f: ((EvaluatorEnv, Any) => Any) =>
             eval(params.head, env).right.flatMap(a => Right(a._1 -> f.apply(env, a._2)))
-          case f: ((Env, Any, Any) => Any) =>
+          case f: ((EvaluatorEnv, Any, Any) => Any) =>
             eval(params.head, env).right.flatMap(a =>
               eval(params(1), a._1).right.flatMap(b =>
                 Right(b._1 -> f.apply(env, a._2, b._2))
               )
             )
-          case f: ((Env, Any, Any, Any) => Any) =>
+          case f: ((EvaluatorEnv, Any, Any, Any) => Any) =>
             eval(params.head, env).right.flatMap(a =>
               eval(params(1), a._1).right.flatMap(b =>
                 eval(params(2), b._1).right.flatMap(c => {
@@ -104,7 +125,7 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
                 )
               )
             )
-          case f: ((Env, Any, Any, Any, Any) => Any) =>
+          case f: ((EvaluatorEnv, Any, Any, Any, Any) => Any) =>
             eval(params.head, env).right.flatMap(a =>
               eval(params(1), a._1).right.flatMap(b =>
                 eval(params(2), b._1).right.flatMap(c =>
@@ -114,7 +135,7 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
                 )
               )
             )
-          case f: ((Env, Any, Any, Any, Any, Any) => Any) =>
+          case f: ((EvaluatorEnv, Any, Any, Any, Any, Any) => Any) =>
             eval(params.head, env).right.flatMap(a =>
               eval(params(1), a._1).right.flatMap(b =>
                 eval(params(2), b._1).right.flatMap(c =>
@@ -126,7 +147,7 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
                 )
               )
             )
-          case f: ((Env, Any, Any, Any, Any, Any, Any) => Any) =>
+          case f: ((EvaluatorEnv, Any, Any, Any, Any, Any, Any) => Any) =>
             eval(params.head, env).right.flatMap(a =>
               eval(params(1), a._1).right.flatMap(b =>
                 eval(params(2), b._1).right.flatMap(c =>
@@ -140,7 +161,7 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
                 )
               )
             )
-          case f: (((Env, Any, Any, Any, Any, Any, Any, Any) => Any)) =>
+          case f: (((EvaluatorEnv, Any, Any, Any, Any, Any, Any, Any) => Any)) =>
             eval(params.head, env).right.flatMap(a =>
               eval(params(1), a._1).right.flatMap(b =>
                 eval(params(2), b._1).right.flatMap(c =>
@@ -156,7 +177,7 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
                 )
               )
             )
-          case f: (((Env, Any, Any, Any, Any, Any, Any, Any, Any) => Any)) =>
+          case f: (((EvaluatorEnv, Any, Any, Any, Any, Any, Any, Any, Any) => Any)) =>
             eval(params.head, env).right.flatMap(a =>
               eval(params(1), a._1).right.flatMap(b =>
                 eval(params(2), b._1).right.flatMap(c =>
@@ -178,18 +199,18 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
           case x => Left("Expected callable function or object, got " + x)
         }
 
-      case ObjectType(name, params, _, defaultParams) =>
-        val paramNames = params.map(_.name) ++ defaultParams
-        Right(env.+(name -> paramNames), paramNames)
+      case obj: ObjectType =>
+        val paramNames = obj.params.map(_.name) ++ obj.defaultParameters
+        Right(env.add(obj.name, obj.params, obj, paramNames), paramNames)
 
       case RefExpr(name, t) =>
-        env.get(name).fold[Value](
-          Left(s"Failed to find '$name' in scope. Please check if it has been declared.")
+        env.get(name, Nil, t).fold[Value](
+          Left(s"Failed to find '$name' with type $t in scope. Please check if it has been declared.")
         )(rest => Right(env -> rest))
 
       case RefFieldExpr(refExpr, field, t) =>
         eval(refExpr, env) match {
-          case Right((_, m: Map[String, Any])) => m.get(field).fold[Value](
+          case Right((paramEnv, m: Map[String, Any])) => m.get(field).fold[Value](
             Left(s"Cannot find field '$field' in expression $refExpr")
           )(value => Right(env -> value))
           case Right(unexpected) => Left(s"Expected object for reference $refExpr, but received $unexpected")
@@ -200,7 +221,7 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
         if (seq.expr.isEmpty) {
           Right(env, Unit)
         } else {
-          def foldRecursive(it: Iterator[Expr], foldEnv: Env): Value = {
+          def foldRecursive(it: Iterator[Expr], foldEnv: EvaluatorEnv): Value = {
             eval(it.next(), foldEnv).fold(error => Left(error), t => {
               if (it.hasNext) {
                 foldRecursive(it, t._1)
@@ -214,26 +235,26 @@ class Evaluator(parser: Parser, defaultEnv: Env) {
       case UnitExpr => Right(env -> Unit)
       case LoopExpr(loopCounterExpr: DefExpr, loopEnd: Expr, body: Expr) =>
         eval(loopCounterExpr.value, env) match {
-          case Right((loopStartEnv: Env, loopStartDouble: Double)) =>
+          case Right((loopStartEnv: EvaluatorEnv, loopStartDouble: Double)) =>
             eval(loopEnd, env) match {
               case Right((_, loopEndDouble: Double)) =>
                 val loopStartInt = loopStartDouble.toInt
                 val loopEndInt = loopEndDouble.toInt
                 /* Note to self: Too much recursion error when looping recursively */
-                var loopEnv: Env = loopStartEnv
+                var loopEnv: EvaluatorEnv = loopStartEnv
                 var lastResult: Any = Unit
                 var lastError: Option[String] = None
                 for (loopCounter <- loopStartInt until loopEndInt if lastError.isEmpty) {
-                  loopEnv = loopEnv.updated(loopCounterExpr.name, loopCounter)
+                  loopEnv = loopEnv.add(loopCounterExpr.name, Nil, NumberType, loopCounter)
                   eval(body, loopEnv).fold(s => {
-                    lastError = Some(s);
+                    lastError = Some(s)
                     s
                   }, x => {
                     lastResult = x._2
                     loopEnv = x._1
                   })
                 }
-                lastError.map(Left(_)).getOrElse(Right(loopEnv.filter(t => env.contains(t._1)) -> lastResult))
+                lastError.map(Left(_)).getOrElse(Right(env -> lastResult))
               case Right((_, x)) => Left(Error.TYPE_MISMATCH("number", x.toString))
               case Left(x) => Left(x)
             }
