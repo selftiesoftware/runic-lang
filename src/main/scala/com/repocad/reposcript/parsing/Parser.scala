@@ -102,7 +102,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
     }
   }
 
-  private def parseCallable(name: String, state: ExprState, success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] =
+  private def parseCallable(name: String, state: ExprState, success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] = {
     parseUntilToken[ExprState](state.copy(tokens = state.tokens.tail), ")", accumulateExprState, parse, (parameterState: ExprState) => {
       val parameters: Seq[Expr] = parameterState.expr match {
         case BlockExpr(params) => params
@@ -120,6 +120,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
           parseReference(name, state, success, failure)
       }
     }, failure)
+  }
 
   private def parseLoop(state: ExprState, success: SuccessCont[ExprState],
                         failure: FailureCont[ExprState]): Value[ExprState] = {
@@ -192,10 +193,10 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
       parse(ExprState(UnitExpr, state.env, state.tokens.tail /* Exclude the last token (the name) */), f, failure)
 
     state.env.getAll(name).filter(_.isInstanceOf[FunctionType]).toSeq match {
-      case Seq(f: FunctionType) if f.params.size == 1 => parseAsFunction(firstState => {
+      case Seq(f: FunctionType) if f.params.size == 1 =>
         // Should be parsed as normal
         success(state)
-      })
+
       // If the call requires two parameters, we look to the previous expression
       case Seq(f: FunctionType) if f.params.size == 2 =>
         state.expr match {

@@ -65,7 +65,7 @@ sealed case class ParserEnv(innerEnv: Map[String, Map[AnyType, Expr]]) {
           case (function: FunctionType, _) => isSameTypes(function.params, params)
           case (obj: ObjectType, _) => isSameTypes(obj.params, params)
           case _ => false
-        }).asInstanceOf[Map[CallableType, Expr]]
+        }).asInstanceOf[Map[CallableType, AnyType]]
         matches.size match {
           case 0 => Left(position => Error.REFERENCE_NOT_FOUND(key, Some(params))(position))
           case 1 => Right(matches.head._1)
