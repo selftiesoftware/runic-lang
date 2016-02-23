@@ -8,6 +8,7 @@ import com.repocad.reposcript.lexing.Position
 case class Error(message : String, position : Position)
 
 object Error {
+
   def AMBIGUOUS_TYPES[T <: AnyType](key: String, matches: Map[T, Expr])(implicit position : Position) : Error =
     Error(s"${matches.size} matches found that matches types under the name $key. Please specify the type or remove the type restriction. Following ambiguous matches found: $matches", position)
 
@@ -55,6 +56,6 @@ object Error {
     Error(s"Type mismatch ${if (when.isEmpty) "" else "when " + when}: Expected $expected, but got $actual", position)
 
   def TYPE_NOT_FOUND(typeName : String)(implicit position : Position) : Error =
-    Error(s"Type '$typeName' not found in scope. Is it defined above?", position)
+    Error(s" def '$typeName' is not defined.", position)
 
 }
