@@ -33,7 +33,7 @@ trait ParsingTest extends FlatSpec with Matchers with MockFactory with BeforeAnd
 
   def parseStringAll(string: String, env: ParserEnv = emptyEnv, spillEnvironment: Boolean = false) = {
     parser = new Parser(mockClient, env)
-    val stream = Lexer.lex(string)
+    val stream = Lexer.lex(string.toLowerCase)
     parser.parse(stream, spillEnvironment = spillEnvironment)
   }
 

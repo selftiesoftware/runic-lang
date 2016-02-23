@@ -9,7 +9,8 @@ object ErrorTest extends ParsingTest {
     //  println(AMBIGUOUS_TYPES[AnyType] ("xyz", Map(NumberType -> NumberExpr(5)))(Position.empty))
 
     def code = {
-      "def sX = 15\n#def sY = 15\n\nline(0 0 sX sY)"
+      "Line(0 0 300 300)"
+      //"repeat 0 to 6 using  \n{line(0 0 i 12)\n}"
     }
     //println(parseString(code))
     println(parseStringAll(code))

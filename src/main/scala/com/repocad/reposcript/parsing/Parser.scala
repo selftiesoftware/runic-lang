@@ -6,7 +6,7 @@ import com.repocad.reposcript.{HttpClient, RemoteCache}
 /**
   * Parses code into drawing expressions (AST)
   */
-class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
+class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, lexer : String => LiveStream[Token])
   extends BlockParser with DefinitionParser with ParserInterface {
 
   val remoteCache = new RemoteCache(httpClient)
@@ -42,7 +42,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv)
 
       // Import
       case SymbolToken("import") :~: SymbolToken(script) :~: tail =>
-        val res = remoteCache.get(script, state.position, code => parse(Lexer.lex(code), spillEnvironment = true))
+        val res = remoteCache.get(script, state.position, code => parse(lexer(code), spillEnvironment = true))
         res match {
           case Left(error) => failure(error)
           case Right(importState) =>
