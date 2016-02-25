@@ -17,12 +17,12 @@ class ImportTest extends ParsingTest {
     )
   }
   it should "import multiple scripts" in {
-    (mockClient.getSynchronous _).expects("get/a").returning(Response(0, 4, "def aVal = 10"))
-    (mockClient.getSynchronous _).expects("get/b").returning(Response(0, 4, "def bVal = 20"))
+    (mockClient.getSynchronous _).expects("get/a").returning(Response(0, 4, "def aval = 10"))
+    (mockClient.getSynchronous _).expects("get/b").returning(Response(0, 4, "def bval = 20"))
 
-    parseStringAll("import a import b aVal bVal", ParserEnv(), spillEnvironment = true) should equal(
-      Right(ExprState(BlockExpr(Seq(ImportExpr("a"), ImportExpr("b"), RefExpr("aVal", NumberType), RefExpr("bVal", NumberType))),
-        ParserEnv("aVal" -> NumberExpr(10), "bVal" -> NumberExpr(20))))
+    parseStringAll("import a import b aval bval", ParserEnv(), spillEnvironment = true) should equal(
+      Right(ExprState(BlockExpr(Seq(ImportExpr("a"), ImportExpr("b"), RefExpr("aval", NumberType), RefExpr("bval", NumberType))),
+        ParserEnv("aval" -> NumberExpr(10), "bval" -> NumberExpr(20))))
     )
   }
 

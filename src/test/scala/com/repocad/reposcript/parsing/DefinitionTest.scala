@@ -100,7 +100,7 @@ class DefinitionTest extends ParsingTest {
   it should "refer to a field in a referenced object" in {
     val obj = ObjectType("o", Seq(RefExpr("x", NumberType)), AnyType)
     val instance = CallExpr("o", obj, Seq(NumberExpr(10)))
-    val expr = parseStringAll("def o(x as Number) \n def i = o(10) \n i.x", ParserEnv("Number" -> NumberType))
+    val expr = parseStringAll("def o(x as number) \n def i = o(10) \n i.x", ParserEnv("number" -> NumberType))
     expr.right.get.expr should equal(
       BlockExpr(Seq(obj, DefExpr("i", instance), RefFieldExpr(RefExpr("i", obj), "x", NumberType))))
   }

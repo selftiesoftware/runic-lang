@@ -7,7 +7,7 @@ import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
 class RemoteCacheTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
 
-  class NoArgParser extends Parser(mockClient, ParserEnv())
+  class NoArgParser extends Parser(mockClient, ParserEnv(), Lexer.lex)
 
   val mockClient = mock[HttpClient]
   val mockParser: Parser = mock[NoArgParser]

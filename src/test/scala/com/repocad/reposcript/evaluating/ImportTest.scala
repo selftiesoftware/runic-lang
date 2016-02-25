@@ -1,6 +1,7 @@
 package com.repocad.reposcript.evaluating
 
 import com.repocad.reposcript._
+import com.repocad.reposcript.lexing.Lexer
 import com.repocad.reposcript.parsing._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
@@ -12,7 +13,7 @@ class ImportTest extends FlatSpec with MockFactory with Matchers {
     .add("line", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType), RefExpr("c", NumberType), RefExpr("d", NumberType)),
       UnitType, (funEnv: EvaluatorEnv, a: Double, b: Double, c: Double, d: Double) => mockPrinter.line(a, b, c, d))
   val mockClient = mock[HttpClient]
-  val mockParser = new Parser(mockClient, Environment.parserEnv)
+  val mockParser = new Parser(mockClient, Environment.parserEnv, Lexer.lex)
   val evaluator = new Evaluator(mockParser, EvaluatorEnv())
 
   "An import evaluator" should "not evaluate printer calls in imports" in {
@@ -34,7 +35,7 @@ class ImportTest extends FlatSpec with MockFactory with Matchers {
   }
   it should "stack import definitions" in {
     val mockClient2 = stub[HttpClient]
-    val newParser = new Parser(mockClient2, ParserEnv())
+    val newParser = new Parser(mockClient2, ParserEnv(), Lexer.lex)
     val newEvaluator = new Evaluator(newParser, EvaluatorEnv())
     (mockClient2.getSynchronous _).when("get/test3").returns(Response(0, 4, "def a = 10"))
     (mockClient2.getSynchronous _).when("get/test4").returns(Response(0, 4, "def b = 12"))

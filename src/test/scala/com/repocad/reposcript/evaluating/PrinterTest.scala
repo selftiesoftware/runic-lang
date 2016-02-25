@@ -1,5 +1,6 @@
 package com.repocad.reposcript.evaluating
 
+import com.repocad.reposcript.lexing.Lexer
 import com.repocad.reposcript.parsing._
 import com.repocad.reposcript.{HttpClient, Printer}
 import org.scalamock.scalatest.MockFactory
@@ -11,7 +12,7 @@ class PrinterTest extends FlatSpec with MockFactory with Matchers {
   val env: EvaluatorEnv = EvaluatorEnv()
     .add("line", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType), RefExpr("c", NumberType), RefExpr("d", NumberType)),
       UnitType, (funEnv: EvaluatorEnv, a: Double, b: Double, c: Double, d: Double) => mockPrinter.line(a, b, c, d))
-  val mockParser = new Parser(mock[HttpClient], ParserEnv())
+  val mockParser = new Parser(mock[HttpClient], ParserEnv(), Lexer.lex)
   val evaluator = new Evaluator(mockParser, EvaluatorEnv())
 
   "A evaluator" should "evaluate a line call" in {
