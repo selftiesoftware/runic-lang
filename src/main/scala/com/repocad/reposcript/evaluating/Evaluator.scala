@@ -27,7 +27,7 @@ class Evaluator(parser: Parser, defaultEnv: EvaluatorEnv) {
     expr match {
 
       case ImportExpr(name) =>
-        remoteCache.get(name, Position.empty, code => parser.parse(Lexer.lex(code))).right.flatMap(state => {
+        remoteCache.get(name, Position.empty, code => parser.parse(code)).right.flatMap(state => {
           val remotePrinterEnv: EvaluatorEnv = env ++ Printer.emptyEvaluatorEnv
           eval(state.expr, remotePrinterEnv).right.map(t => (t._1 ++ env) -> t._2)
         }).left.map(_.toString)

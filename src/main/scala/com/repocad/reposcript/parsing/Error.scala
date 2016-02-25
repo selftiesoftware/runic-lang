@@ -56,6 +56,6 @@ object Error {
     Error(s"Type mismatch ${if (when.isEmpty) "" else "when " + when}: Expected $expected, but got $actual", position)
 
   def TYPE_NOT_FOUND(typeName : String)(implicit position : Position) : Error =
-    Error(s"Type '$typeName' not found in scope. Is it defined above?", position)
+    Error(s" def '$typeName' is not defined.", position)
 
 }

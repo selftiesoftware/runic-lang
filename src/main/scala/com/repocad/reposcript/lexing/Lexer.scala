@@ -7,7 +7,7 @@ package com.repocad.reposcript.lexing
  Site:   http://matt.might.net/
 
  */
-class Lexer extends NonblockingLexer[Char, Token] {
+sealed class Lexer extends NonblockingLexer[Char, Token] {
 
   import RegularLanguageImplicits._
 
@@ -83,5 +83,13 @@ object Lexer {
     lexer.lex(stream)
     lexer.output
   }
+
+  def lex(code : String, toLowerCase : Boolean) : LiveStream[Token] = {
+    val stream = LiveStream(if(toLowerCase) code.toLowerCase else code)
+    val lexer = new Lexer()
+    lexer.lex(stream)
+    lexer.output
+  }
+
 }
 
