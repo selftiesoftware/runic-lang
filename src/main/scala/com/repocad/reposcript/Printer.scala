@@ -96,6 +96,17 @@ trait Printer[T] {
   def text(x: Double, y: Double, h: Double, t: Any)
 
   /**
+    * Renders a text string in a specific font
+    *
+    * @param x    First coordinate
+    * @param y    Second coordinate
+    * @param h    Height
+    * @param t    Text
+    * @param font The name of the font to render
+    */
+  def text(x: Double, y: Double, h: Double, t: Any, font: String)
+
+  /**
     * Prepares the printer for drawing.
     */
   def prepare(): Unit
