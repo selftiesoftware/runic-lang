@@ -79,7 +79,6 @@ sealed case class ParserEnv(innerEnv: Map[String, Map[AnyType, Expr]]) {
       false
     } else {
       for (i <- expected.indices) {
-        println(expected(i), actual(i), expected(i).t.isChild(actual(i).t))
         if (!expected(i).t.isChild(actual(i).t)) {
           return false
         }
