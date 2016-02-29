@@ -24,8 +24,12 @@ trait Printer[T] {
         (env: EvaluatorEnv, x: Double, y: Double, r: Double) => circle(x, y, r))
       .add("line", Printer.getNumberTypeReferences("x1", "y1", "x2", "y2"), UnitType,
         (env: EvaluatorEnv, x1: Double, y1: Double, x2: Double, y2: Double) => line(x1, y1, x2, y2))
-      .add("text", Printer.getNumberTypeReferences("x", "y", "h") :+ RefExpr("t", AnyType), UnitType,
+      .add("text", Printer.getNumberTypeReferences("x", "y", "h") :+ RefExpr("t", AnyType), Printer.vectorType,
         (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any) => text(x, y, h, t))
+      .add("text", Printer.getNumberTypeReferences("x", "y", "h").:+(RefExpr("t", AnyType)).:+(RefExpr("font", StringType)), Printer.vectorType,
+        (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any) => text(x, y, h, t))
+      .add("vector", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), Printer.vectorType,
+        (env: EvaluatorEnv, x: Double, y: Double) => Map("x" -> x, "y" -> y))
 
   def addAction(action: T => Unit): Unit = {
     actions :+= action
@@ -135,13 +139,16 @@ object Printer {
     for (name <- names) yield RefExpr(name, NumberType)
   }
 
+  val vectorType = ObjectType("vector", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), AnyType)
 
-  lazy val toParserEnv: ParserEnv = ParserEnv.ofMap(Map(
+  lazy val toParserEnv: ParserEnv = ParserEnv(
+    "vector" -> vectorType,
     "arc" -> FunctionType("arc", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("r", NumberType), RefExpr("sAngle", NumberType), RefExpr("eAngle", NumberType)), UnitExpr),
     "bezier" -> FunctionType("bezier", Seq(RefExpr("x1", NumberType), RefExpr("y1", NumberType), RefExpr("x2", NumberType), RefExpr("y2", NumberType), RefExpr("x3", NumberType), RefExpr("y3", NumberType), RefExpr("x4", NumberType), RefExpr("y4", NumberType)), UnitExpr),
     "circle" -> FunctionType("circle", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("r", NumberType)), UnitExpr),
     "line" -> FunctionType("line", Seq(RefExpr("x1", NumberType), RefExpr("y1", NumberType), RefExpr("x2", NumberType), RefExpr("y2", NumberType)), UnitExpr),
-    "text" -> FunctionType("text", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("h", NumberType), RefExpr("t", AnyType)), UnitExpr)
-  ))
+    "text" -> FunctionType("text", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("h", NumberType), RefExpr("t", AnyType)), vectorType),
+    "text" -> FunctionType("text", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("h", NumberType), RefExpr("t", AnyType), RefExpr("font", StringType)), vectorType)
+  )
 
 }

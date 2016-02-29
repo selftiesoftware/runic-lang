@@ -21,15 +21,15 @@ class DrawingTest extends ParsingTest with MockFactory {
     parseString("line(1 2 3 4)", env).right.get.expr should equal(CallExpr("line", UnitType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(4))))
   }
   it should "parse a text call" in {
-    parseString("text(1 2 3 \"hello\")", env).right.get.expr should equal(CallExpr("text", UnitType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), StringExpr("hello"))))
+    parseString("text(1 2 3 \"hello\")", env).right.get.expr should equal(CallExpr("text", Printer.vectorType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), StringExpr("hello"))))
   }
   it should "parse a text call with a number" in {
-    parseString("text(1 2 3 12.3)", env).right.get.expr should equal(CallExpr("text", UnitType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(12.3))))
+    parseString("text(1 2 3 12.3)", env).right.get.expr should equal(CallExpr("text", Printer.vectorType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(12.3))))
   }
   it should "parse a text with a calculated number" in {
     parseString("{def a as Number = 2 + 3 \n text(a 0 30 \"test\")").right.get.expr should equal(
       BlockExpr(Seq(DefExpr("a", CallExpr("+", NumberType, Seq(NumberExpr(2), NumberExpr(3)))),
-        CallExpr("text", UnitType, Seq(RefExpr("a", NumberType), NumberExpr(0), NumberExpr(30), StringExpr("test"))))))
+        CallExpr("text", Printer.vectorType, Seq(RefExpr("a", NumberType), NumberExpr(0), NumberExpr(30), StringExpr("test"))))))
   }
 
 }
