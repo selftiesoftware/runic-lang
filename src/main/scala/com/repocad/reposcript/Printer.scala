@@ -98,7 +98,7 @@ trait Printer[T] {
     * @param t Text
     * @return The text dimensions as a Vector
     */
-  def text(x: Double, y: Double, h: Double, t: Any): (Double, Double)
+  def text(x: Double, y: Double, h: Double, t: Any): Map[String, Any]
 
   /**
     * Renders a text string in a specific font
@@ -110,7 +110,7 @@ trait Printer[T] {
     * @param font The name of the font to render
     * @return The text dimensions as a Vector
     */
-  def text(x: Double, y: Double, h: Double, t: Any, font: String): (Double, Double)
+  def text(x: Double, y: Double, h: Double, t: Any, font: String): Map[String, Any]
 
   /**
     * Prepares the printer for drawing.
