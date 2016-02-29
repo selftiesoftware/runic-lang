@@ -92,8 +92,9 @@ trait Printer[T] {
     * @param y Second coordinate
     * @param h Height
     * @param t Text
+    * @return The text dimensions as a Vector
     */
-  def text(x: Double, y: Double, h: Double, t: Any)
+  def text(x: Double, y: Double, h: Double, t: Any): (Double, Double)
 
   /**
     * Renders a text string in a specific font
@@ -103,8 +104,9 @@ trait Printer[T] {
     * @param h    Height
     * @param t    Text
     * @param font The name of the font to render
+    * @return The text dimensions as a Vector
     */
-  def text(x: Double, y: Double, h: Double, t: Any, font: String)
+  def text(x: Double, y: Double, h: Double, t: Any, font: String): (Double, Double)
 
   /**
     * Prepares the printer for drawing.
