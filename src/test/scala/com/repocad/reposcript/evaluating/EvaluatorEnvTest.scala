@@ -36,5 +36,10 @@ class EvaluatorEnvTest extends FlatSpec with Matchers {
   it should "Find an entry with a subtype of an input parameter" in {
     EvaluatorEnv.empty.add("test", Seq(AnyType), StringType, "hi").get("test", Seq(NumberType), StringType) should equal(Some("hi"))
   }
+  it should "Merge two environments with the same name, but different signatures" in {
+    EvaluatorEnv.empty.add("test", Nil, NumberType, 2) ++ EvaluatorEnv.empty.add("test", Nil, UnitType, Unit) should equal(
+      new EvaluatorEnv(Map("test" -> Map(Signature(Nil, NumberType) -> 2, Signature(Nil, UnitType) -> Unit)))
+    )
+  }
 
 }

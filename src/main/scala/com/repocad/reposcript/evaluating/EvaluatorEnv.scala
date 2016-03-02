@@ -21,7 +21,7 @@ case class EvaluatorEnv(map: Map[String, Map[Signature, Any]] = Map()) {
   }
 
   def ++(that: EvaluatorEnv): EvaluatorEnv = {
-    new EvaluatorEnv(map ++ that.map)
+    new EvaluatorEnv(map.map(entry => entry._1 -> entry._2.++(that.map.getOrElse(entry._1, Map()))))
   }
 
   def get(name: String, input: Seq[Expr], output: AnyType): Option[Any] = {
