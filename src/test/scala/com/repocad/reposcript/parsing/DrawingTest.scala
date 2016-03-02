@@ -1,11 +1,11 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.{Environment, Printer}
+import com.repocad.reposcript.{Environment, Renderer$}
 import org.scalamock.scalatest.MockFactory
 
 class DrawingTest extends ParsingTest with MockFactory {
 
-  val mockPrinter: Printer[Any] = mock[Printer[Any]]
+  val mockPrinter: Renderer[Any] = mock[Renderer[Any]]
   val env = Environment.parserEnv
 
   "A parser using default drawing environments" should "parse an arc call" in {
@@ -21,15 +21,15 @@ class DrawingTest extends ParsingTest with MockFactory {
     parseString("line(1 2 3 4)", env).right.get.expr should equal(CallExpr("line", UnitType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(4))))
   }
   it should "parse a text call" in {
-    parseString("text(1 2 3 \"hello\")", env).right.get.expr should equal(CallExpr("text", Printer.vectorType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), StringExpr("hello"))))
+    parseString("text(1 2 3 \"hello\")", env).right.get.expr should equal(CallExpr("text", Renderer.vectorType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), StringExpr("hello"))))
   }
   it should "parse a text call with a number" in {
-    parseString("text(1 2 3 12.3)", env).right.get.expr should equal(CallExpr("text", Printer.vectorType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(12.3))))
+    parseString("text(1 2 3 12.3)", env).right.get.expr should equal(CallExpr("text", Renderer.vectorType, Seq(NumberExpr(1), NumberExpr(2), NumberExpr(3), NumberExpr(12.3))))
   }
   it should "parse a text with a calculated number" in {
     parseString("{def a as Number = 2 + 3 \n text(a 0 30 \"test\")").right.get.expr should equal(
       BlockExpr(Seq(DefExpr("a", CallExpr("+", NumberType, Seq(NumberExpr(2), NumberExpr(3)))),
-        CallExpr("text", Printer.vectorType, Seq(RefExpr("a", NumberType), NumberExpr(0), NumberExpr(30), StringExpr("test"))))))
+        CallExpr("text", Renderer.vectorType, Seq(RefExpr("a", NumberType), NumberExpr(0), NumberExpr(30), StringExpr("test"))))))
   }
 
 }

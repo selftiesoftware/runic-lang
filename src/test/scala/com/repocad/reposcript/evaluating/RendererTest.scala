@@ -2,13 +2,13 @@ package com.repocad.reposcript.evaluating
 
 import com.repocad.reposcript.lexing.Lexer
 import com.repocad.reposcript.parsing._
-import com.repocad.reposcript.{HttpClient, Printer}
+import com.repocad.reposcript.{HttpClient, Renderer$}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
-class PrinterTest extends FlatSpec with MockFactory with Matchers {
+class RendererTest extends FlatSpec with MockFactory with Matchers {
 
-  val mockPrinter: Printer[Any] = mock[Printer[Any]]
+  val mockPrinter: Renderer[Any] = mock[Renderer[Any]]
   val env: EvaluatorEnv = EvaluatorEnv()
     .add("line", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType), RefExpr("c", NumberType), RefExpr("d", NumberType)),
       UnitType, (funEnv: EvaluatorEnv, a: Double, b: Double, c: Double, d: Double) => mockPrinter.line(a, b, c, d))

@@ -60,6 +60,6 @@ object Environment {
 
   // String types plus primitive operations plus printer operations
   lazy val parserEnv: ParserEnv =
-    ParserEnv.ofMap(stringTypeMap ++ primitiveEnv.map(t => t._1 -> t._2._1)) ++ Printer.toParserEnv
+    ParserEnv.ofMap(stringTypeMap ++ primitiveEnv.map(t => t._1 -> t._2._1)) ++ Renderer.toParserEnv
 
 }
