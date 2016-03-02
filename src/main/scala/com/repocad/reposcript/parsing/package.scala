@@ -14,11 +14,11 @@ package object parsing {
   type ParserFunction[T <: ParserState[T]] = (T, SuccessCont[T], FailureCont[T]) => Value[T]
 
   lazy val stringTypeMap: Map[String, AnyType] = Map(
-    "Boolean" -> BooleanType,
-    "Number" -> NumberType,
-    "String" -> StringType,
-    "Type" -> AnyType,
-    "Unit" -> UnitType
+    "any" -> AnyType,
+    "boolean" -> BooleanType,
+    "number" -> NumberType,
+    "string" -> StringType,
+    "unit" -> UnitType
   )
 
 }

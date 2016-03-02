@@ -23,7 +23,7 @@ class ImportTest extends FlatSpec with MockFactory with Matchers {
     evaluator.eval(ImportExpr("test1"), evaluatorEnv).isRight should equal(true)
   }
   it should "include imported functions in the environment" in {
-    (mockClient.getSynchronous _).expects("get/test2").returning(Response(0, 4, "def a(b as Number) = b"))
+    (mockClient.getSynchronous _).expects("get/test2").returning(Response(0, 4, "def a(b as number) = b"))
     val result = evaluator.eval(ImportExpr("test2"), evaluatorEnv)
     result.isRight should equal(true)
     val fun = result.right.get._2.asInstanceOf[Function2[EvaluatorEnv, Double, Double]]
@@ -41,6 +41,14 @@ class ImportTest extends FlatSpec with MockFactory with Matchers {
     (mockClient2.getSynchronous _).when("get/test4").returns(Response(0, 4, "def b = 12"))
     newEvaluator.eval(BlockExpr(Seq(ImportExpr("test3"), ImportExpr("test4"), RefExpr("a", NumberType), RefExpr("b", NumberType))), evaluatorEnv)
       .isRight should equal(true)
+  }
+  it should "stack import definitions with different type signatures" in {
+    val mockClient2 = stub[HttpClient]
+    val newParser = new Parser(mockClient2, Environment.parserEnv, Lexer.lex(_, toLowerCase = true))
+    val newEvaluator = new Evaluator(newParser, Environment.evaluatorEnv)
+    (mockClient2.getSynchronous _).when("get/test3").returns(Response(0, 4, "def f(x as Number) = x"))
+    (mockClient2.getSynchronous _).when("get/test4").returns(Response(0, 4, "def f(x as String) = x"))
+    newParser.parse("import test3 import test4 f(10) f(\"hi\")").isRight should equal(true)
   }
 
 }

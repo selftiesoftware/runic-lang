@@ -1,5 +1,7 @@
 package com.repocad.reposcript.parsing
 
+import com.repocad.reposcript.lexing.{LivePlug, LiveNil}
+
 class StringParserTest extends ParsingTest {
 
   "A text parser" should "parse a empty string" in {
@@ -20,6 +22,12 @@ class StringParserTest extends ParsingTest {
   it should "reset environments when ending blocks" in {
     parseStringAll("def a = 10", ParserEnv(), spillEnvironment = false) should equal(
       Right(ExprState(DefExpr("a", NumberExpr(10)), ParserEnv())))
+  }
+  it should "retain the casing in strings" in {
+    val string = "Hello World"
+    parseString("def A = \"" + string + "\"", ParserEnv()) should equal (
+      Right(ExprState(DefExpr("a", StringExpr(string)), ParserEnv()))
+    )
   }
 
 }

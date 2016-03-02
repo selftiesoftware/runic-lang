@@ -41,5 +41,10 @@ class EvaluatorEnvTest extends FlatSpec with Matchers {
       new EvaluatorEnv(Map("test" -> Map(Signature(Nil, NumberType) -> 2, Signature(Nil, UnitType) -> Unit)))
     )
   }
+  it should "Merge to environments with different keys" in {
+    EvaluatorEnv.empty.add("test", Nil, NumberType, 2) ++ EvaluatorEnv.empty.add("test2", Nil, NumberType, 3) should equal(
+      new EvaluatorEnv(Map("test" -> Map(Signature(Nil, NumberType) -> 2), "test2" -> Map(Signature(Nil, NumberType) -> 3)))
+    )
+  }
 
 }

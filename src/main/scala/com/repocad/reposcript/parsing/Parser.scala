@@ -13,8 +13,8 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer : 
 
   private val DEFAULT_LOOP_COUNTER = "counter"
 
-  def parse(string: String) : Value[ExprState] = {
-    parse(lexer(string), spillEnvironment = false)
+  def parse(string: String, spillEnvironment: Boolean = false) : Value[ExprState] = {
+    parse(lexer(string), spillEnvironment)
   }
 
   def parse(tokens: LiveStream[Token], spillEnvironment: Boolean): Value[ExprState] = {
