@@ -9,7 +9,7 @@ import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 class ReposcriptIntegrationTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
 
   val mockClient = mock[HttpClient]
-  val mockPrinter: Renderer[_] = mock[Renderer[Any]]
+  val mockPrinter: Renderer = mock[Renderer]
   val parser = new Parser(mockClient, Environment.parserEnv, Lexer.lex)
   val evaluator = new Evaluator(parser, Environment.evaluatorEnv)
 

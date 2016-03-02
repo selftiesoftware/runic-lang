@@ -1,11 +1,11 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.{Environment, Renderer$}
+import com.repocad.reposcript.{Environment, Renderer}
 import org.scalamock.scalatest.MockFactory
 
 class DrawingTest extends ParsingTest with MockFactory {
 
-  val mockPrinter: Renderer[Any] = mock[Renderer[Any]]
+  val mockPrinter: Renderer = mock[Renderer]
   val env = Environment.parserEnv
 
   "A parser using default drawing environments" should "parse an arc call" in {

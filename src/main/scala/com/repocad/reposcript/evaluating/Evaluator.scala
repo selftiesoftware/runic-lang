@@ -1,8 +1,8 @@
 package com.repocad.reposcript.evaluating
 
-import com.repocad.reposcript.lexing.{Lexer, Position}
+import com.repocad.reposcript._
+import com.repocad.reposcript.lexing.Position
 import com.repocad.reposcript.parsing._
-import com.repocad.reposcript.{Renderer$, _}
 
 /**
   * An evaluator to evaluate a list of [[Expr]]
@@ -11,7 +11,7 @@ class Evaluator(parser: Parser, defaultEnv: EvaluatorEnv) {
 
   private val remoteCache: RemoteCache = parser.remoteCache
 
-  def eval(expr: Expr, printer: Renderer[_]): Value = {
+  def eval(expr: Expr, printer: Renderer): Value = {
     try {
       eval(expr, defaultEnv ++ printer.toEvaluatorEnv).left.map(e => {
         println("Error when evaluating: " + e)

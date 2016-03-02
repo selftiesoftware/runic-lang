@@ -2,13 +2,13 @@ package com.repocad.reposcript.evaluating
 
 import com.repocad.reposcript.lexing.Lexer
 import com.repocad.reposcript.parsing._
-import com.repocad.reposcript.{Environment, HttpClient, Renderer$}
+import com.repocad.reposcript.{Environment, HttpClient, Renderer}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 class PrimitivesTest extends FlatSpec with MockFactory with Matchers {
 
-  val mockPrinter: Renderer[Any] = mock[Renderer[Any]]
+  val mockPrinter: Renderer = mock[Renderer]
   val defaultEnv = Environment.evaluatorEnv
   val mockParser = new Parser(mock[HttpClient], ParserEnv(), Lexer.lex)
   val evaluator = new Evaluator(mockParser, defaultEnv)
