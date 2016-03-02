@@ -6,14 +6,14 @@ import com.repocad.reposcript.{HttpClient, RemoteCache}
 /**
   * Parses code into drawing expressions (AST)
   */
-class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer : String => LiveStream[Token])
+class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: String => LiveStream[Token])
   extends BlockParser with DefinitionParser with ParserInterface {
 
   val remoteCache = new RemoteCache(httpClient)
 
   private val DEFAULT_LOOP_COUNTER = "counter"
 
-  def parse(string: String, spillEnvironment: Boolean = false) : Value[ExprState] = {
+  def parse(string: String, spillEnvironment: Boolean = false): Value[ExprState] = {
     parse(lexer(string), spillEnvironment)
   }
 
@@ -201,18 +201,18 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer : 
       case Seq(f: FunctionType) if f.params.size == 2 =>
         state.expr match {
           case firstParameter: Expr if f.params.head.t.isChild(firstParameter.t) =>
-            parseAsFunction(secondState => {
-              val secondParameter = secondState.expr
-              if (f.params(1).t.isChild(secondParameter.t)) {
+            parseAsFunction(secondState => secondState.expr match {
+              case BlockExpr(xs) => success(state)
+              case secondParameter if f.params(1).t.isChild(secondParameter.t) =>
                 state.expr match {
                   case DefExpr(defName, value) =>
                     success(secondState.copy(expr = DefExpr(defName, CallExpr(name, f.returnType, Seq(value, secondParameter)))))
                   case expr =>
                     success(ExprState(CallExpr(name, f.returnType, Seq(firstParameter, secondParameter)), state.env, secondState.tokens))
                 }
-              } else {
+              case expr =>
                 failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
-              }
+
             })
           case _ => success(state)
         }

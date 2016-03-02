@@ -38,6 +38,12 @@ class ReferenceTest extends ParsingTest {
         CallExpr("a", NumberType, Seq(NumberExpr(3)))))
     )
   }
+  it should "not use a previous expression to substitute a parameter" in {
+    val function = FunctionType("f", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType)
+    parseStringAll("200 f(203 30)", ParserEnv("f" -> function)).right.get.expr should equal(
+      BlockExpr(Seq(NumberExpr(200), CallExpr("f", NumberType, Seq(NumberExpr(203), NumberExpr(30)))))
+    )
+  }
 
   "Consecutive function calls" should "parse operations recursively" in {
     parseString("1 + 2 + 3").right.get.expr should equal(
