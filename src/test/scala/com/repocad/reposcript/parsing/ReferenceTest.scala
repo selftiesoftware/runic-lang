@@ -38,10 +38,16 @@ class ReferenceTest extends ParsingTest {
         CallExpr("a", NumberType, Seq(NumberExpr(3)))))
     )
   }
-  it should "not use a previous expression to substitute a parameter" in {
+  it should "not use a previous expression to substitute the first parameter" in {
     val function = FunctionType("f", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType)
     parseStringAll("200 f(203 30)", ParserEnv("f" -> function)).right.get.expr should equal(
       BlockExpr(Seq(NumberExpr(200), CallExpr("f", NumberType, Seq(NumberExpr(203), NumberExpr(30)))))
+    )
+  }
+  it should "not use a previous expression to substitute the second parameter" in {
+    val function = FunctionType("f", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType)
+    parseStringAll("def n = 200 f(203 n)", ParserEnv("f" -> function)).right.get.expr should equal(
+      BlockExpr(Seq(DefExpr("n", NumberExpr(200)), CallExpr("f", NumberType, Seq(NumberExpr(203), RefExpr("n", NumberType)))))
     )
   }
 

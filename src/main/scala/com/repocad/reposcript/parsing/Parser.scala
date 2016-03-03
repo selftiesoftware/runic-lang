@@ -190,7 +190,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
   def parseSuffixFunction(name: String, state: ExprState, success: SuccessCont[ExprState],
                           failure: FailureCont[ExprState]): Value[ExprState] = {
     def parseAsFunction(f: SuccessCont[ExprState]): Value[ExprState] =
-      parse(ExprState(UnitExpr, state.env, state.tokens.tail /* Exclude the last token (the name) */), f, failure)
+      parse(ExprState(UnitExpr, state.env, state.tokens.tail /* Exclude the last token (the name) */), f, _ => success(state))
 
     state.env.getAll(name).filter(_.isInstanceOf[FunctionType]).toSeq match {
       case Seq(f: FunctionType) if f.params.size == 1 =>
