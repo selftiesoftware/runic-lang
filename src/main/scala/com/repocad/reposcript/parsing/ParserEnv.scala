@@ -104,10 +104,8 @@ object ParserEnv {
 
   def apply(): ParserEnv = empty
 
-  def apply(kvs: (String, Expr)*): ParserEnv = new ParserEnv(
-    kvs.foldLeft(Map[String, Map[AnyType, Expr]]())(
-      (map, t) => map.updated(t._1, map.getOrElse(t._1, Map()).+(t._2.t -> t._2))
-    ))
+  def apply(kvs: (String, Expr)*): ParserEnv =
+    kvs.foldLeft(empty)((env, t) => env.+(t._1, t._2))
 
   val empty = new ParserEnv(Map())
 
