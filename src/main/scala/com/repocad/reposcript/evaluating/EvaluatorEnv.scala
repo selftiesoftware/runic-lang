@@ -43,7 +43,9 @@ case class Signature(input: Seq[AnyType], output: AnyType) {
   override def equals(that: Any): Boolean = {
     that match {
       case second: Signature =>
-        output.t.isChild(second.output) && input.zip(second.input).forall(t => t._1.isChild(t._2))
+        input.size == second.input.size &&
+          output.t.isChild(second.output) &&
+          input.zip(second.input).forall(t => t._1.isChild(t._2))
       case _ => false
     }
   }

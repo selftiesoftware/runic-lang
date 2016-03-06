@@ -1,6 +1,6 @@
 package com.repocad.reposcript.evaluating
 
-import com.repocad.reposcript.parsing.{AnyType, NumberType, StringType, UnitType}
+import com.repocad.reposcript.parsing._
 import org.scalatest.{FlatSpec, Matchers}
 
 class EvaluatorEnvTest extends FlatSpec with Matchers {
@@ -44,6 +44,11 @@ class EvaluatorEnvTest extends FlatSpec with Matchers {
   it should "Merge to environments with different keys" in {
     EvaluatorEnv.empty.add("test", Nil, NumberType, 2) ++ EvaluatorEnv.empty.add("test2", Nil, NumberType, 3) should equal(
       new EvaluatorEnv(Map("test" -> Map(Signature(Nil, NumberType) -> 2), "test2" -> Map(Signature(Nil, NumberType) -> 3)))
+    )
+  }
+  it should "add two functions with same name but different input parameters" in {
+    EvaluatorEnv.empty.add("f", Seq(RefExpr("a", NumberType)), NumberType, 7).add("f", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType)), NumberType, 8) should equal(
+      new EvaluatorEnv(Map("f" -> Map(Signature(Seq(NumberType), NumberType) -> 7, Signature(Seq(NumberType, NumberType), NumberType) -> 8)))
     )
   }
 
