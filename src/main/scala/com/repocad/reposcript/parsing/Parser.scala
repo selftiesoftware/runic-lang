@@ -162,10 +162,19 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
     }
   }
 
-  private def parseSuffix(state: ExprState, success: SuccessCont[ExprState],
+  private def parseSuffix(state: ExprState, successContinuation: SuccessCont[ExprState],
                           failure: FailureCont[ExprState]): Value[ExprState] = {
+    var endState = state
+    def success(newState: ExprState) : Value[ExprState] = {
+      if (newState == endState) {
+        successContinuation(newState)
+      } else {
+        endState = newState
+        parseSuffix(newState, success, failure)
+      }
+    }
     state.tokens match {
-      // Object field accessors
+      // Object field access
       case PunctToken(".") :~: (accessor: SymbolToken) :~: tail =>
         def findParamFromObject(reference: Expr, obj: ObjectType): Value[ExprState] = {
           obj.params.find(_.name == accessor.s).map(
@@ -174,13 +183,16 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
         }
 
         state.expr match {
+          case block: BlockExpr if block.t.isInstanceOf[ObjectType] => findParamFromObject(block, block.t.asInstanceOf[ObjectType])
           case call: CallExpr if call.t.isInstanceOf[ObjectType] => findParamFromObject(call, call.t.asInstanceOf[ObjectType])
           case ref: RefExpr if ref.t.isInstanceOf[ObjectType] => findParamFromObject(ref, ref.t.asInstanceOf[ObjectType])
+          case refField: RefFieldExpr if refField.t.isInstanceOf[ObjectType] => findParamFromObject(refField, refField.t.asInstanceOf[ObjectType])
 
           case unknown => failure(Error.EXPECTED_OBJECT_ACCESS(state.expr.toString)(state.position))
         }
 
-      case PunctToken(name) :~: tail if !"{}()".contains(name) => parseSuffixFunction(name, state.copy(tokens = tail), success, failure)
+      // Function references with prefixes like "a - b" == "-(a b)"
+      case PunctToken(name) :~: tail if !"{}().".contains(name) => parseSuffixFunction(name, state.copy(tokens = tail), success, failure)
       case SymbolToken(name) :~: tail => parseSuffixFunction(name, state, success, failure)
 
       case _ => success(state)

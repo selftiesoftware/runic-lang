@@ -117,5 +117,20 @@ class ReferenceTest extends ParsingTest {
       FunctionType("f", Seq(RefExpr("v", obj)), RefFieldExpr(RefExpr("v", obj), "x", NumberType))
     )
   }
+  it should "reference a field from a block" in {
+    val obj = ObjectType("a", Seq(RefExpr("x", NumberType)), AnyType)
+    val block = BlockExpr(Seq(NumberExpr(10), CallExpr("a", obj, Seq(NumberExpr(13)))))
+    parseStringAll("{10 a(13)}.x", ParserEnv("a" -> obj)).right.get.expr should equal(
+      RefFieldExpr(block, "x", NumberType)
+    )
+  }
+  it should "reference an object within an object" in {
+    val obj2 = ObjectType("b", Seq(RefExpr("y", AnyType)), AnyType)
+    val obj1 = ObjectType("a", Seq(RefExpr("x", obj2)), AnyType)
+    parseString("a(b(true)).x.y", ParserEnv("a" -> obj1, "b" -> obj2)).right.get.expr should equal(
+      RefFieldExpr(
+        RefFieldExpr(CallExpr("a", obj1, Seq(CallExpr("b", obj2, Seq(BooleanExpr(true))))), "x", obj2), "y", AnyType)
+    )
+  }
 
 }

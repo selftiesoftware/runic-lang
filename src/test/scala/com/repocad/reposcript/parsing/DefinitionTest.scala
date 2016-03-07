@@ -1,5 +1,6 @@
 package com.repocad.reposcript.parsing
 
+import com.repocad.reposcript.Environment
 import com.repocad.reposcript.lexing.Position
 
 class DefinitionTest extends ParsingTest {
@@ -53,7 +54,7 @@ class DefinitionTest extends ParsingTest {
   }
   it should "store a function in the value environment" in {
     val function = FunctionType("a", Seq(), UnitExpr)
-    parseString("def a() = ", ParserEnv(), true).right.get.env should equal(ParserEnv("a" -> function))
+    parseString("def a() = ", ParserEnv(), spillEnvironment = true).right.get.env should equal(ParserEnv("a" -> function))
   }
   it should "accept references to existing parameters in the function body" in {
     val function = FunctionType("a", Seq(RefExpr("b", NumberType)), RefExpr("b", NumberType))
@@ -123,8 +124,9 @@ class DefinitionTest extends ParsingTest {
   }
   it should "define objects as a subtype of another object" in {
     val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
-    println(parseString("def child(a as Number) extends o", ParserEnv("o" -> parent, "Number" -> NumberType)))//.right.get.expr should equal(
-      //ObjectType("child", Seq(RefExpr("a", NumberType)), parent))
+    parseString("def child(a as Number) extends o", ParserEnv("o" -> parent, "number" -> NumberType)).right.get.expr should equal(
+      ObjectType("child", Seq(RefExpr("a", NumberType)), parent)
+    )
   }
   it should "fail when subtypes forget parent parameters" in {
     val parent = ObjectType("o", Seq(RefExpr("a", NumberType)), AnyType)
@@ -152,6 +154,13 @@ class DefinitionTest extends ParsingTest {
     parseStringAll("def v = 20 f(o(v))", ParserEnv("o" -> obj, "f" -> function)).right.get.expr should equal(
       BlockExpr(Seq(DefExpr("v", NumberExpr(20)), CallExpr("f", NumberType, Seq(
         CallExpr("o", obj, Seq(RefExpr("v", NumberType)))))))
+    )
+  }
+  it should "perform calculations within references" in {
+    val obj = ObjectType("f", Seq(RefExpr("x", NumberType)), AnyType)
+    parseStringAll("def a = f(10) f(a.x - 11)", Environment.parserEnv ++ ParserEnv("f" -> obj)).right.get.expr should equal(
+      BlockExpr(Seq(DefExpr("a", CallExpr("f", obj, Seq(NumberExpr(10)))),
+        CallExpr("f", obj, Seq(CallExpr("-", NumberType, Seq(RefFieldExpr(RefExpr("a", obj), "x", NumberType), NumberExpr(11)))))))
     )
   }
 
