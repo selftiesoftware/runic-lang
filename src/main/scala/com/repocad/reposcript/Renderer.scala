@@ -8,6 +8,8 @@ import com.repocad.reposcript.parsing._
   */
 object Renderer {
 
+  val vectorType = ObjectType("vector", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), AnyType)
+
   lazy val emptyEvaluatorEnv: EvaluatorEnv =
     EvaluatorEnv()
       .add("arc", getNumberTypeReferences("x", "y", "r", "sAngle", "eAngle"), UnitType,
@@ -19,14 +21,14 @@ object Renderer {
         (env: EvaluatorEnv, x: Double, y: Double, r: Double) => Unit)
       .add("line", getNumberTypeReferences("x1", "y1", "x2", "y2"), UnitType,
         (env: EvaluatorEnv, x1: Double, y1: Double, x2: Double, y2: Double) => Unit)
-      .add("text", getNumberTypeReferences("x", "y", "h") :+ RefExpr("t", AnyType), UnitType,
+      .add("text", getNumberTypeReferences("x", "y", "h") :+ RefExpr("t", AnyType), vectorType,
         (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any) => Unit)
+      .add("text", getNumberTypeReferences("x", "y", "h").:+(RefExpr("t", AnyType)).:+(RefExpr("font", StringType)), vectorType,
+        (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any, font: String) => Unit)
 
   def getNumberTypeReferences(names: String*): Seq[RefExpr] = {
     for (name <- names) yield RefExpr(name, NumberType)
   }
-
-  val vectorType = ObjectType("vector", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), AnyType)
 
   lazy val toParserEnv: ParserEnv = ParserEnv(
     "vector" -> vectorType,
@@ -60,7 +62,7 @@ trait Renderer {
       .add("text", Renderer.getNumberTypeReferences("x", "y", "h") :+ RefExpr("t", AnyType), Renderer.vectorType,
         (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any) => text(x, y, h, t))
       .add("text", Renderer.getNumberTypeReferences("x", "y", "h").:+(RefExpr("t", AnyType)).:+(RefExpr("font", StringType)), Renderer.vectorType,
-        (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any) => text(x, y, h, t))
+        (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any, f: String) => text(x, y, h, t, f))
       .add("vector", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), Renderer.vectorType,
         (env: EvaluatorEnv, x: Double, y: Double) => Map("x" -> x, "y" -> y))
 
