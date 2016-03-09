@@ -12,7 +12,7 @@ class ImportTest extends FlatSpec with MockFactory with Matchers with BeforeAndA
   val evaluatorEnv: EvaluatorEnv = EvaluatorEnv()
     .add("line", Seq(RefExpr("a", NumberType), RefExpr("b", NumberType), RefExpr("c", NumberType), RefExpr("d", NumberType)),
       UnitType, (funEnv: EvaluatorEnv, a: Double, b: Double, c: Double, d: Double) => mockPrinter.line(a, b, c, d))
-  
+
   def fixture = {
     new {
 
