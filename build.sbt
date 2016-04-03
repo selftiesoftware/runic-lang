@@ -1,6 +1,4 @@
 
-enablePlugins(ScalaJSPlugin)
-
 name := "reposcript"
 
 version := "1.0"
@@ -13,6 +11,8 @@ scalacOptions in Compile ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test",
-  "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "test"
+  "org.scalatest" %%% "scalatest" % "3.0.0-M15" % Test,
+  "org.scalamock" %%% "scalamock-scalatest-support" % "3.2" % Test
 )
+
+//enablePlugins(ScalaJSPlugin)
