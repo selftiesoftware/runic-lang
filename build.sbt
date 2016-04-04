@@ -1,7 +1,7 @@
+
 name := "reposcript"
-
-version := "1.0"
-
+version := "0.1-SNAPSHOT"
+organization := "com.repocad"
 scalaVersion := "2.11.7"
 
 scalacOptions in Compile ++= Seq(
@@ -10,6 +10,6 @@ scalacOptions in Compile ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.0.0-M15" % Test,
-  "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % Test
+  "org.scalatest" %%% "scalatest" % "3.0.0-M15" % Test,
+  "org.scalamock" %%% "scalamock-scalatest-support" % "3.2" % Test
 )
