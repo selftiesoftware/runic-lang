@@ -6,7 +6,7 @@ import com.repocad.reposcript.lexing.Position
   * A parser environment that can store one or more expressions under a name (identifier). Each name can have 0 or more
   * (overloaded) expressions stored under that name. The type of the expression is used to identify overloaded values.
   * Because of the possibility to overload expressions, ``get`` operations from this environment risks to cause a
-  * [[Error]], if more than one expression matches the query.
+  * [[ParserError]], if more than one expression matches the query.
   */
 sealed case class ParserEnv(innerEnv: Map[String, Map[AnyType, Expr]]) {
 
@@ -38,28 +38,28 @@ sealed case class ParserEnv(innerEnv: Map[String, Map[AnyType, Expr]]) {
 
   def contains(name: String) = innerEnv.get(name).exists(_.nonEmpty)
 
-  def get(key: String): Either[Position => Error, Expr] = getAsType(key, AnyType)
+  def get(key: String): Either[Position => ParserError, Expr] = getAsType(key, AnyType)
 
   def getAll(key: String): Iterable[Expr] = innerEnv.get(key).map(_.values).getOrElse(Iterable[Expr]())
 
-  def getAsType(key: String, typ: AnyType): Either[Position => Error, Expr] = getAsType(key, t => typ.isChild(t))
+  def getAsType(key: String, typ: AnyType): Either[Position => ParserError, Expr] = getAsType(key, t => typ.isChild(t))
 
-  def getAsType(key: String, f: AnyType => Boolean): Either[Position => Error, Expr] = {
+  def getAsType(key: String, f: AnyType => Boolean): Either[Position => ParserError, Expr] = {
     innerEnv.get(key) match {
-      case None => Left(position => Error.TYPE_NOT_FOUND(key)(position))
+      case None => Left(position => ParserError.TYPE_NOT_FOUND(key)(position))
       case Some(map) =>
         val matches = map.filter(t => f(t._1))
         matches.size match {
-          case 0 => Left(position => Error.TYPE_NOT_FOUND(key)(position))
+          case 0 => Left(position => ParserError.TYPE_NOT_FOUND(key)(position))
           case 1 => Right(matches.head._2)
-          case n => Left(position => Error.AMBIGUOUS_TYPES(key, matches)(position))
+          case n => Left(position => ParserError.AMBIGUOUS_TYPES(key, matches)(position))
         }
     }
   }
 
-  def getCallableWithParameters(key: String, params: Seq[Expr]): Either[Position => Error, CallableType] = {
+  def getCallableWithParameters(key: String, params: Seq[Expr]): Either[Position => ParserError, CallableType] = {
     innerEnv.get(key) match {
-      case None => Left(position => Error.TYPE_NOT_FOUND(key)(position))
+      case None => Left(position => ParserError.TYPE_NOT_FOUND(key)(position))
       case Some(map) =>
         val matches = map.filter({
           case (function: FunctionType, _) => isSameTypes(function.params, params)
@@ -67,9 +67,9 @@ sealed case class ParserEnv(innerEnv: Map[String, Map[AnyType, Expr]]) {
           case _ => false
         }).asInstanceOf[Map[CallableType, AnyType]]
         matches.size match {
-          case 0 => Left(position => Error.REFERENCE_NOT_FOUND(key, Some(params))(position))
+          case 0 => Left(position => ParserError.REFERENCE_NOT_FOUND(key, Some(params))(position))
           case 1 => Right(matches.head._1)
-          case n => Left(position => Error.AMBIGUOUS_TYPES(key, matches)(position))
+          case n => Left(position => ParserError.AMBIGUOUS_TYPES(key, matches)(position))
         }
     }
   }
@@ -105,7 +105,7 @@ object ParserEnv {
   def apply(): ParserEnv = empty
 
   def apply(kvs: (String, Expr)*): ParserEnv =
-    kvs.foldLeft(empty)((env, t) => env.+(t._1, t._2))
+    kvs.foldLeft(empty)((env, t) => env.+((t._1, t._2)))
 
   val empty = new ParserEnv(Map())
 

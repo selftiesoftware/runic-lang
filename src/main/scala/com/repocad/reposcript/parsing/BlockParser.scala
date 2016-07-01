@@ -24,7 +24,7 @@ trait BlockParser {
     /*
     Implementation note: This is done procedurally to avoid stack overflows with too deep recursion.
      */
-    var currentState: Value[T] = Right[Error, T](startState)
+    var currentState: Value[T] = Right[ParserError, T](startState)
     while (currentState.isRight && !currentState.right.get.tokens.isPlugged && !condition(currentState.right.get)) {
       parseFunction.apply(currentState.right.get, (state: T) => {
         currentState = Right(accumulate(currentState.right.get, state))

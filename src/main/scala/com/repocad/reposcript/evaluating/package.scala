@@ -6,7 +6,7 @@ package com.repocad.reposcript
   */
 package object evaluating {
 
-  type Value = Either[String, (EvaluatorEnv, Any)]
+  type Value = Either[String, (EvaluatorEnv, Any, ModelGeneratorRenderer)]
 
   object Error {
     def OPERATOR_NOT_FOUND(x: String): String = s"Failed to find operator '$x'. Has it been defined?"

@@ -47,7 +47,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
                   success(ExprState(function, startState.env.+(name -> function), bodyState.tokens))
                 }, failure)
 
-              case SymbolToken("{") :~: _ => Left(Error.SYNTAX_ERROR("=", "}")(parameterState.tokens.head.position))
+              case SymbolToken("{") :~: _ => Left(ParserError.SYNTAX_ERROR("=", "}")(parameterState.tokens.head.position))
 
               case SymbolToken("extends") :~: SymbolToken(parent) :~: PunctToken("(") :~: parentTail =>
                 parseUntilToken[ExprState](ExprState(UnitExpr, startState.env, parentTail), ")", accumulateExprState, parse,
@@ -69,7 +69,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
                 parseObject(name, parameterState.copy(tokens = objectTail), Some(parent -> Seq()), success, failure)
 
               case SymbolToken("extends") :~: parentTail =>
-                Left(Error.SYNTAX_ERROR("parent object name", parentTail.toString)(parentTail.head.position))
+                Left(ParserError.SYNTAX_ERROR("parent object name", parentTail.toString)(parentTail.head.position))
 
               case objectTail => parseObject(name, parameterState.copy(env = startState.env), None, success, failure)
             }
@@ -85,7 +85,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
             parentType.isChild(assignmentExpr.t) match {
               case true => success(ExprState(DefExpr(name, assignmentExpr),
                 assignmentState.env + (name -> assignmentExpr), assignmentState.tokens))
-              case false => failure(Error.ASSIGNMENT_TYPE_MISMATCH(name, parentType, assignmentExpr)(assignmentState.position))
+              case false => failure(ParserError.ASSIGNMENT_TYPE_MISMATCH(name, parentType, assignmentExpr)(assignmentState.position))
             }
           }, failure)
         )
@@ -129,8 +129,8 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
               state.env.+(name -> reference), tail))
           case Left(error) => failure(error.apply(state.position))
         }
-      case SymbolToken(name) :~: tail => failure(Error.EXPECTED_TYPE_PARAMETERS(name)(state.position))
-      case tail => failure(Error.SYNTAX_ERROR("function parameters", tail.toString)(state.position))
+      case SymbolToken(name) :~: tail => failure(ParserError.EXPECTED_TYPE_PARAMETERS(name)(state.position))
+      case tail => failure(ParserError.SYNTAX_ERROR("function parameters", tail.toString)(state.position))
     }
   }
 
@@ -147,7 +147,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
           //              .right.flatMap(obj => success(ExprState(obj, parameterState.env + (name -> obj), parameterState.tokens)))
           //success(ExprState(UnitExpr, parameterState.env, parameterState.tokens))
 
-          case Right(element) => failure(Error.OBJECT_NOT_FOUND(parentName)(parameterState.position))
+          case Right(element) => failure(ParserError.OBJECT_NOT_FOUND(parentName)(parameterState.position))
           case Left(error) => failure(error.apply(parameterState.position))
         }
 
@@ -159,22 +159,22 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
 
   private def createObjectFromParameters(objectName: String, parent: ObjectType,
                                          parameters: Seq[RefExpr], defaultParameters: Seq[Expr],
-                                         position: Position): Either[Error, ObjectType] = {
+                                         position: Position): Either[ParserError, ObjectType] = {
     val expectedParameters = parent.params.size
     val actualParameters = parameters.size + defaultParameters.size
     if (expectedParameters != actualParameters) {
-      Left(Error.EXPECTED_PARAMETER_NUMBER(parent.name, expectedParameters.toString,
+      Left(ParserError.EXPECTED_PARAMETER_NUMBER(parent.name, expectedParameters.toString,
         actualParameters.toString)(position))
     } else {
       val parametersWithoutValue = parent.params.filter(t => !parameters.contains(t))
 
       if (parametersWithoutValue.size != defaultParameters.size) {
-        Left(Error.EXPECTED_PARAMETER_NUMBER(objectName, parametersWithoutValue.size + " default",
+        Left(ParserError.EXPECTED_PARAMETER_NUMBER(objectName, parametersWithoutValue.size + " default",
           defaultParameters.toString())(position))
       } else {
 
         // Verify default parameters (and implicitly the object parameters)
-        var verifiedDefaultParameters: Either[Error, Map[String, Expr]] = Right(Map())
+        var verifiedDefaultParameters: Either[ParserError, Map[String, Expr]] = Right(Map())
         var i = 0
         while (i < parametersWithoutValue.size && verifiedDefaultParameters.isRight) {
           val parameterWithoutValue = parametersWithoutValue(i)
@@ -184,7 +184,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
               Right(verifiedDefaultParameters.right.get + (parameterWithoutValue.name -> defaultParameter))
           } else {
             verifiedDefaultParameters =
-              Left(Error.TYPE_MISMATCH(parameterWithoutValue.t.toString, defaultParameter.t.toString,
+              Left(ParserError.TYPE_MISMATCH(parameterWithoutValue.t.toString, defaultParameter.t.toString,
                 "setting default parameters for object " + objectName)(position))
           }
           i = i + 1

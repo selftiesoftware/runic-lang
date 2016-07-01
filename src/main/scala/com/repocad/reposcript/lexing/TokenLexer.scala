@@ -1,5 +1,7 @@
 package com.repocad.reposcript.lexing
 
+import scala.language.{implicitConversions, postfixOps}
+
 /*
  SXLexer: A lexer for the programming language Scheme
 
@@ -7,7 +9,7 @@ package com.repocad.reposcript.lexing
  Site:   http://matt.might.net/
 
  */
-sealed class Lexer(toLowerCase: Boolean) extends NonblockingLexer[Char, Token] {
+sealed class TokenLexer(toLowerCase: Boolean) extends NonblockingLexer[Char, Token] {
 
   import RegularLanguageImplicits._
 
@@ -119,14 +121,15 @@ sealed class Lexer(toLowerCase: Boolean) extends NonblockingLexer[Char, Token] {
 
 }
 
-object Lexer {
+object TokenLexer {
+
   def lex(code: String): LiveStream[Token] = {
     lex(code, true)
   }
 
   def lex(code: String, toLowerCase: Boolean): LiveStream[Token] = {
     val stream = LiveStream(code)
-    val lexer = new Lexer(toLowerCase)
+    val lexer = new TokenLexer(toLowerCase)
     lexer.lex(stream)
     lexer.output
   }

@@ -6,6 +6,7 @@ scalaVersion := "2.11.7"
 homepage := Some(url("http://repocad.com"))
 
 scalacOptions in Compile ++= Seq(
+  "-feature",
   "-Xlint",
   "-deprecation"
 )

@@ -116,7 +116,7 @@ class DefinitionTest extends ParsingTest {
     val value = "hello"
     val t = ObjectType("object", Seq(RefExpr("name", StringType)), AnyType)
     parseString("instance.noField", ParserEnv("object" -> t, "instance" -> CallExpr("object", t, Seq(StringExpr(value))))).left.get should equal(
-      Error.OBJECT_UNKNOWN_PARAMETER_NAME("object", "nofield")(Position.start))
+      ParserError.OBJECT_UNKNOWN_PARAMETER_NAME("object", "nofield")(Position.start))
   }
   it should "reference another object" in {
     val o1 = ObjectType("o1", Seq(), AnyType)

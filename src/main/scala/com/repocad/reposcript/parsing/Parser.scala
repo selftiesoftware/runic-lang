@@ -1,12 +1,39 @@
 package com.repocad.reposcript.parsing
 
+import java.util.concurrent.TimeUnit
+
+import com.repocad.remote.HttpClient
+import com.repocad.reposcript.RemoteCache
 import com.repocad.reposcript.lexing._
-import com.repocad.reposcript.{HttpClient, RemoteCache}
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 /**
-  * Parses code into drawing expressions (AST)
+  * Companion object to the [[Parser]].
   */
-class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: String => LiveStream[Token])
+object Parser {
+
+  /**
+    * Parses some tokens into an AST of [[Expr]].
+    *
+    * @param tokens     The tokens to parse.
+    * @param httpClient The HttpClient to use when importing modules.
+    * @param defaultEnv The default environment to use when starting the parsing.
+    * @param lexer      The lexer to employ when importing modules.
+    * @return Either an [[ParserError]] or an [[Expr]].
+    */
+  def parse(tokens: LiveStream[Token], httpClient: HttpClient, defaultEnv: ParserEnv = ParserEnv.empty,
+            lexer: Lexer = TokenLexer.lex): Either[ParserError, Expr] = {
+    new Parser(httpClient, defaultEnv, lexer).parse(tokens, spillEnvironment = false).right.map(_.expr)
+  }
+
+}
+
+/**
+  * Parses code into drawing expressions (AST). Should not be called directly. Use the companion object
+  */
+class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: Lexer)
   extends BlockParser with DefinitionParser with ParserInterface {
 
   val remoteCache = new RemoteCache(httpClient)
@@ -30,8 +57,8 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
           }
         }, e => Left(e))
     } catch {
-      case e: InternalError => Left(Error("Script too large (sorry - we're working on it!)", Position.empty))
-      case e: Exception => Left(Error(e.getLocalizedMessage, Position.empty))
+      case e: InternalError => Left(ParserError("Script too large (sorry - we're working on it!)", Position.empty))
+      case e: Exception => Left(ParserError(e.getLocalizedMessage, Position.empty))
     }
   }
 
@@ -42,8 +69,8 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
 
       // Import
       case SymbolToken("import") :~: SymbolToken(script) :~: tail =>
-        val res = remoteCache.get(script, state.position, code => parse(lexer(code), spillEnvironment = true))
-        res match {
+        Await.result(remoteCache.get(script, state.position, code => parse(lexer(code), spillEnvironment = true)),
+          Duration(500, TimeUnit.MILLISECONDS)) match {
           case Left(error) => failure(error)
           case Right(importState) =>
             success(ExprState(ImportExpr(script), state.env.++(importState.env), tail))
@@ -52,7 +79,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
       case SymbolToken("if") :~: tail =>
         parse(state.copy(tokens = tail), conditionState => {
           if (conditionState.expr.t != BooleanType) {
-            failure(Error.TYPE_MISMATCH(BooleanType.toString, conditionState.expr.t.toString)(state.position))
+            failure(ParserError.TYPE_MISMATCH(BooleanType.toString, conditionState.expr.t.toString)(state.position))
           } else {
             parse(conditionState, ifState => {
               ifState.tokens match {
@@ -98,7 +125,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
 
       case rest if rest.isEmpty => success(state.copy(UnitExpr, tokens = rest))
 
-      case xs => failure(Error(s"Unrecognised token pattern $xs", xs.head.position))
+      case xs => failure(ParserError(s"Unrecognised token pattern $xs", xs.head.position))
     }
   }
 
@@ -127,9 +154,9 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
     def parseLoopWithRange(counterName: String, from: Expr, to: Expr, bodyTokens: LiveStream[Token],
                            success: SuccessCont[ExprState], failure: FailureCont[ExprState]): Value[ExprState] = {
       if (!NumberType.isChild(from.t)) {
-        failure(Error.TYPE_MISMATCH("number", from.t.toString, "defining the number to start from in a loop")(state.position))
+        failure(ParserError.TYPE_MISMATCH("number", from.t.toString, "defining the number to start from in a loop")(state.position))
       } else if (!NumberType.isChild(to.t)) {
-        failure(Error.TYPE_MISMATCH("number", to.t.toString, "defining when to end a loop")(state.position))
+        failure(ParserError.TYPE_MISMATCH("number", to.t.toString, "defining when to end a loop")(state.position))
       } else {
         parse(ExprState(UnitExpr, state.env + (counterName -> from), bodyTokens), bodyState => {
           success(ExprState(LoopExpr(DefExpr(counterName, from), to, bodyState.expr),
@@ -140,7 +167,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
     def parseLoopWithCounterName(fromExpr: Expr, toExpr: Expr, loopNameTail: LiveStream[Token]) = {
       loopNameTail match {
         case SymbolToken(counterName) :~: tail => parseLoopWithRange(counterName, fromExpr, toExpr, tail, success, failure)
-        case unknown => failure(Error.SYNTAX_ERROR("name of a loop variable", unknown.toString)(state.position))
+        case unknown => failure(ParserError.SYNTAX_ERROR("name of a loop variable", unknown.toString)(state.position))
       }
     }
     parse(state, firstState => firstState.tokens match {
@@ -165,7 +192,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
   private def parseSuffix(state: ExprState, successContinuation: SuccessCont[ExprState],
                           failure: FailureCont[ExprState]): Value[ExprState] = {
     var endState = state
-    def success(newState: ExprState) : Value[ExprState] = {
+    def success(newState: ExprState): Value[ExprState] = {
       if (newState == endState) {
         successContinuation(newState)
       } else {
@@ -179,7 +206,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
         def findParamFromObject(reference: Expr, obj: ObjectType): Value[ExprState] = {
           obj.params.find(_.name == accessor.s).map(
             param => success(ExprState(RefFieldExpr(reference, param.name, param.t), state.env, tail))
-          ).getOrElse(failure(Error.OBJECT_UNKNOWN_PARAMETER_NAME(obj.name, accessor.s)(accessor.position)))
+          ).getOrElse(failure(ParserError.OBJECT_UNKNOWN_PARAMETER_NAME(obj.name, accessor.s)(accessor.position)))
         }
 
         state.expr match {
@@ -188,7 +215,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
           case ref: RefExpr if ref.t.isInstanceOf[ObjectType] => findParamFromObject(ref, ref.t.asInstanceOf[ObjectType])
           case refField: RefFieldExpr if refField.t.isInstanceOf[ObjectType] => findParamFromObject(refField, refField.t.asInstanceOf[ObjectType])
 
-          case unknown => failure(Error.EXPECTED_OBJECT_ACCESS(state.expr.toString)(state.position))
+          case unknown => failure(ParserError.EXPECTED_OBJECT_ACCESS(state.expr.toString)(state.position))
         }
 
       // Function references with prefixes like "a - b" == "-(a b)"
@@ -223,7 +250,7 @@ class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: S
                     success(ExprState(CallExpr(name, f.returnType, Seq(firstParameter, secondParameter)), state.env, secondState.tokens))
                 }
               case expr =>
-                failure(Error.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
+                failure(ParserError.TYPE_MISMATCH(f.params.head.t.toString, firstParameter.t.toString)(secondState.position))
 
             })
           case _ => success(state)
