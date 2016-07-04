@@ -1,6 +1,8 @@
 package com.repocad.reposcript
 
+import java.io.{BufferedReader, Reader}
 import java.net.URL
+import java.util.stream.Collectors
 
 import com.repocad.remote._
 import com.repocad.reposcript.lexing.TokenLexer
@@ -34,8 +36,8 @@ object Reposcript {
 
   }
 
-  def compile(file: Source, httpClient: HttpClient): Either[ParserError, Expr] = {
-    val text = file.mkString("\n")
+  def compile(reader: BufferedReader, httpClient: HttpClient): Either[ParserError, Expr] = {
+    val text = Stream.continually(reader.readLine()).takeWhile(_ != null).mkString("\n")
     Parser.parse(TokenLexer.lex(text), httpClient)
   }
 
@@ -60,20 +62,30 @@ object Reposcript {
     flags match {
       case "help" :: tail => printHelp()
       //      case "evaluate" :: tail =>
-      case "compile" :: file :: tail => compile(Source.fromFile(file, "UTF8"), nativeHttpClient).merge.toString
+      case "compile" :: "-i" :: file :: Nil =>
+        print(compile(Source.fromFile(file, "UTF8").bufferedReader(), nativeHttpClient).merge.toString)
+      case "compile" :: Nil =>
+        print(compile(Console.in, nativeHttpClient).merge.toString)
       case e => printError(s"Unknown command '$e'")
     }
   }
 
   private def printError(error: String): Unit = {
-    println(error)
+    println("Error: " + error)
     printHelp()
   }
 
   private def printHelp(): Unit = {
-    println("Usage: Reposcript [compilehelp] [input file]")
-    println("\tcompile\tCompiles an input file by lexing and parsing it. Produces an AST.")
+    println("Usage: Reposcript [compile|help] [-i input file]")
+    println("Reposcript is a library for lexing, parsing and interpreting the Reposcript language.")
+    println("It can be used in two phases: compile and evaluate. By default the input is read from standard input.")
+    println("Compilation: Lexes and parser text into an Abstract Syntax Tree (AST).")
+    println("Evaluation: Evaluates the AST to a euclidean model and renders it on a graphical surface.")
+    println("Options:")
+    println("\tcompile\t\tCompiles an input file by lexing and parsing it. Produces an AST.")
     println("\t\t\tRequires an input.")
+    println("Flags:")
+    println("\t-i\t\tAn input file to read the input source from.")
     //    println("\tevaluate\tEvaluates an AST as a graphical model and renders it to a given output.")
     //    println("\t\t\tRequires an AST and output format.")
   }

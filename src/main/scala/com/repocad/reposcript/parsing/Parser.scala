@@ -35,7 +35,6 @@ object Parser {
   */
 class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: Lexer)
   extends BlockParser with DefinitionParser with ParserInterface {
-
   val remoteCache = new RemoteCache(httpClient)
 
   private val DEFAULT_LOOP_COUNTER = "counter"

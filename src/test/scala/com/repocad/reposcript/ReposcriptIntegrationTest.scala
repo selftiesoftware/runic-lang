@@ -1,5 +1,7 @@
 package com.repocad.reposcript
 
+import java.io._
+
 import com.repocad.remote.HttpClient
 import com.repocad.reposcript.evaluating.Evaluator
 import com.repocad.reposcript.lexing.TokenLexer
@@ -19,6 +21,21 @@ class ReposcriptIntegrationTest extends FlatSpec with Matchers with MockFactory 
     (mockPrinter.circle _).expects(0d, 0d, 20d).once()
     val expr = parser.parse("def a as Number = 10 \n def b = a + 10 \n circle(0 0 b)").right.get.expr
     println(evaluator.eval(expr, mockPrinter))
+  }
+
+  "Reposcript command line" should "compile to AST" in {
+    val out = new ByteArrayOutputStream()
+    val in = new ByteArrayInputStream("10".getBytes("UTF8"))
+    scala.Console.withIn(in) {
+      scala.Console.withOut(out) {
+        Reposcript.main(Array("compile"))
+        in.close()
+        out.close()
+        val outString = out.toString("UTF8")
+        //    println(outString)
+        outString should equal(NumberExpr(10).toString)
+      }
+    }
   }
 
 }
