@@ -1,7 +1,7 @@
 package com.repocad.reposcript.evaluating
 
 import com.repocad.reposcript._
-import com.repocad.reposcript.model.ModelRenderer
+import com.repocad.reposcript.model.{FontMetrics, ModelRenderer}
 import com.repocad.reposcript.parsing._
 
 /**
@@ -11,9 +11,9 @@ class Evaluator(parser: Parser, defaultEnv: EvaluatorEnv) {
 
   private val remoteCache: RemoteCache = parser.remoteCache
 
-  def eval(expr: Expr, renderer: Renderer): Unit = {
+  def eval(expr: Expr, renderer: Renderer, fontMetrics: FontMetrics): Unit = {
     new ModelGenerator(parser)
-      .eval(expr, defaultEnv)
+      .eval(expr, defaultEnv, fontMetrics)
       .fold(println, model => ModelRenderer.render(model, renderer))
   }
 

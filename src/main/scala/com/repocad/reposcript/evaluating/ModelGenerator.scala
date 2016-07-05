@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import com.repocad.reposcript.Renderer
 import com.repocad.reposcript.lexing.Position
-import com.repocad.reposcript.model.ShapeModel
+import com.repocad.reposcript.model.{FontMetrics, ShapeModel}
 import com.repocad.reposcript.parsing._
 
 import scala.concurrent.Await
@@ -15,9 +15,9 @@ import scala.concurrent.duration.Duration
   */
 class ModelGenerator(parser: Parser) {
 
-  def eval(expr: Expr, env: EvaluatorEnv): Either[String, ShapeModel] = {
+  def eval(expr: Expr, env: EvaluatorEnv, fontMetrics: FontMetrics): Either[String, ShapeModel] = {
     try {
-      val renderer = new ModelGeneratorRenderer
+      val renderer = new ModelGeneratorRenderer(fontMetrics)
       eval(expr, env ++ renderer.toEvaluatorEnv, renderer).fold(e => {
         println("Error when evaluating: " + e)
         Left(e)
@@ -100,7 +100,7 @@ class ModelGenerator(parser: Parser) {
       case CallExpr(name, t, params) =>
         env.get(name, params, t).fold[Value](
           Left(s"Failed to find a function or object called '$name'. Please ensure it has been declared.")) {
-          case objectParams: Seq[String @unchecked] =>
+          case objectParams: Seq[String@unchecked] =>
             if (params.size != objectParams.size) {
               Left(Error.OBJECT_PARAM_SIZE_NOT_EQUAL(name, objectParams.size, params.size))
             } else {
@@ -114,16 +114,16 @@ class ModelGenerator(parser: Parser) {
               }
             }
 
-          case f: ((EvaluatorEnv @unchecked) => Any @unchecked) => Right((env, f(env), renderer))
-          case f: ((EvaluatorEnv @unchecked, Any @unchecked) => Any @unchecked) =>
+          case f: ((EvaluatorEnv@unchecked) => Any@unchecked) => Right((env, f(env), renderer))
+          case f: ((EvaluatorEnv@unchecked, Any@unchecked) => Any@unchecked) =>
             eval(params.head, env, renderer).right.flatMap(a => Right((a._1, f.apply(env, a._2), a._3)))
-          case f: ((EvaluatorEnv @unchecked, Any @unchecked, Any @unchecked) => Any @unchecked) =>
+          case f: ((EvaluatorEnv@unchecked, Any@unchecked, Any@unchecked) => Any@unchecked) =>
             eval(params.head, env, renderer).right.flatMap(a =>
               eval(params(1), a._1, a._3).right.flatMap(b =>
                 Right((b._1, f.apply(env, a._2, b._2), b._3))
               )
             )
-          case f: ((EvaluatorEnv @unchecked, Any @unchecked, Any @unchecked, Any @unchecked) => Any @unchecked) =>
+          case f: ((EvaluatorEnv@unchecked, Any@unchecked, Any@unchecked, Any@unchecked) => Any@unchecked) =>
             eval(params.head, env, renderer).right.flatMap(a =>
               eval(params(1), a._1, a._3).right.flatMap(b =>
                 eval(params(2), b._1, b._3).right.flatMap(c => {
@@ -132,8 +132,8 @@ class ModelGenerator(parser: Parser) {
                 )
               )
             )
-          case f: ((EvaluatorEnv @unchecked, Any @unchecked, Any @unchecked, Any @unchecked, Any @unchecked) =>
-            Any @unchecked) =>
+          case f: ((EvaluatorEnv@unchecked, Any@unchecked, Any@unchecked, Any@unchecked, Any@unchecked) =>
+            Any@unchecked) =>
             eval(params.head, env, renderer).right.flatMap(a =>
               eval(params(1), a._1, a._3).right.flatMap(b =>
                 eval(params(2), b._1, b._3).right.flatMap(c =>
@@ -143,8 +143,8 @@ class ModelGenerator(parser: Parser) {
                 )
               )
             )
-          case f: ((EvaluatorEnv @unchecked, Any @unchecked, Any @unchecked, Any @unchecked, Any @unchecked,
-            Any @unchecked) => Any @unchecked) =>
+          case f: ((EvaluatorEnv@unchecked, Any@unchecked, Any@unchecked, Any@unchecked, Any@unchecked,
+            Any@unchecked) => Any@unchecked) =>
             eval(params.head, env, renderer).right.flatMap(a =>
               eval(params(1), a._1, a._3).right.flatMap(b =>
                 eval(params(2), b._1, b._3).right.flatMap(c =>
@@ -156,8 +156,8 @@ class ModelGenerator(parser: Parser) {
                 )
               )
             )
-          case f: ((EvaluatorEnv @unchecked, Any @unchecked, Any @unchecked, Any @unchecked, Any @unchecked,
-            Any @unchecked, Any @unchecked) => Any @unchecked) =>
+          case f: ((EvaluatorEnv@unchecked, Any@unchecked, Any@unchecked, Any@unchecked, Any@unchecked,
+            Any@unchecked, Any@unchecked) => Any@unchecked) =>
             eval(params.head, env, renderer).right.flatMap(a =>
               eval(params(1), a._1, a._3).right.flatMap(b =>
                 eval(params(2), b._1, b._3).right.flatMap(c =>
@@ -171,8 +171,8 @@ class ModelGenerator(parser: Parser) {
                 )
               )
             )
-          case f: (((EvaluatorEnv @unchecked, Any @unchecked, Any @unchecked, Any @unchecked, Any @unchecked,
-            Any @unchecked, Any @unchecked, Any @unchecked) => Any @unchecked)) =>
+          case f: (((EvaluatorEnv@unchecked, Any@unchecked, Any@unchecked, Any@unchecked, Any@unchecked,
+            Any@unchecked, Any@unchecked, Any@unchecked) => Any@unchecked)) =>
             eval(params.head, env, renderer).right.flatMap(a =>
               eval(params(1), a._1, a._3).right.flatMap(b =>
                 eval(params(2), b._1, b._3).right.flatMap(c =>
@@ -188,8 +188,8 @@ class ModelGenerator(parser: Parser) {
                 )
               )
             )
-          case f: (((EvaluatorEnv @unchecked, Any @unchecked, Any @unchecked, Any @unchecked, Any @unchecked,
-            Any @unchecked, Any @unchecked, Any @unchecked, Any @unchecked) => Any @unchecked)) =>
+          case f: (((EvaluatorEnv@unchecked, Any@unchecked, Any@unchecked, Any@unchecked, Any@unchecked,
+            Any@unchecked, Any@unchecked, Any@unchecked, Any@unchecked) => Any@unchecked)) =>
             eval(params.head, env, renderer).right.flatMap(a =>
               eval(params(1), a._1, a._3).right.flatMap(b =>
                 eval(params(2), b._1, b._3).right.flatMap(c =>
@@ -222,7 +222,7 @@ class ModelGenerator(parser: Parser) {
 
       case RefFieldExpr(refExpr, field, t) =>
         eval(refExpr, env, renderer) match {
-          case Right((paramEnv, m: Map[String, Any] @unchecked, _)) => m.get(field).fold[Value](
+          case Right((paramEnv, m: Map[String, Any]@unchecked, _)) => m.get(field).fold[Value](
             Left(s"Cannot find field '$field' in expression $refExpr")
           )(value => Right((env, value, renderer)))
           case Right(unexpected) => Left(s"Expected object for reference $refExpr, but received $unexpected")

@@ -5,6 +5,7 @@ import java.io._
 import com.repocad.remote.HttpClient
 import com.repocad.reposcript.evaluating.Evaluator
 import com.repocad.reposcript.lexing.TokenLexer
+import com.repocad.reposcript.model.FontMetrics
 import com.repocad.reposcript.parsing._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -14,13 +15,14 @@ class ReposcriptIntegrationTest extends FlatSpec with Matchers with MockFactory 
 
   val mockClient = mock[HttpClient]
   val mockPrinter: Renderer = mock[Renderer]
+  val mockFontMetrics = mock[FontMetrics]
   val parser = new Parser(mockClient, Environment.parserEnv, TokenLexer.lex(_, toLowerCase = true))
   val evaluator = new Evaluator(parser, Environment.evaluatorEnv)
 
   "Reposcript" should "call a drawing function" in {
     (mockPrinter.circle _).expects(0d, 0d, 20d).once()
     val expr = parser.parse("def a as Number = 10 \n def b = a + 10 \n circle(0 0 b)").right.get.expr
-    println(evaluator.eval(expr, mockPrinter))
+    println(evaluator.eval(expr, mockPrinter, mockFontMetrics))
   }
 
   "Reposcript command line" should "compile to AST" in {

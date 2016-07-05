@@ -1,8 +1,7 @@
 package com.repocad.reposcript
 
-import java.io.{BufferedReader, Reader}
+import java.io.BufferedReader
 import java.net.URL
-import java.util.stream.Collectors
 
 import com.repocad.remote._
 import com.repocad.reposcript.lexing.TokenLexer
