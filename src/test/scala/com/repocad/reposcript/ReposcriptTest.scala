@@ -10,7 +10,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class ReposcriptIntegrationTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
+class ReposcriptTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
 
   val mockClient = mock[HttpClient]
   val mockPrinter: Renderer = mock[Renderer]
@@ -23,19 +23,5 @@ class ReposcriptIntegrationTest extends FlatSpec with Matchers with MockFactory 
     Evaluator.eval(expr, parser, Environment.evaluatorEnv, mockPrinter, mockFontMetrics)
   }
 
-  "Reposcript command line" should "compile to AST" in {
-    val out = new ByteArrayOutputStream()
-    val in = new ByteArrayInputStream("10".getBytes("UTF8"))
-    scala.Console.withIn(in) {
-      scala.Console.withOut(out) {
-        Main.main(Array("compile"))
-        in.close()
-        out.close()
-        val outString = out.toString("UTF8")
-        //    println(outString)
-        outString should equal(NumberExpr(10).toString)
-      }
-    }
-  }
 
 }
