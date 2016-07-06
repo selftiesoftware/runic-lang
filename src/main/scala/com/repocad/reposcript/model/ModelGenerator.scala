@@ -1,11 +1,11 @@
-package com.repocad.reposcript.evaluating
+package com.repocad.reposcript.model
 
 import java.util.concurrent.TimeUnit
 
-import com.repocad.reposcript.Renderer
+import com.repocad.reposcript.Evaluator.Error
 import com.repocad.reposcript.lexing.Position
-import com.repocad.reposcript.model.{FontMetrics, ShapeModel}
 import com.repocad.reposcript.parsing._
+import com.repocad.reposcript.{Evaluator, EvaluatorEnv}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -19,7 +19,6 @@ class ModelGenerator(parser: Parser) {
     try {
       val renderer = new ModelGeneratorRenderer(fontMetrics)
       eval(expr, env ++ renderer.toEvaluatorEnv, renderer).fold(e => {
-        println("Error when evaluating: " + e)
         Left(e)
       }, tuple => Right(tuple._3.model))
     } catch {
@@ -28,13 +27,14 @@ class ModelGenerator(parser: Parser) {
     }
   }
 
-  def eval(expr: Expr, env: EvaluatorEnv, renderer: ModelGeneratorRenderer): Value = {
+  def eval(expr: Expr, env: EvaluatorEnv, renderer: ModelGeneratorRenderer): Evaluator.Value = {
     expr match {
 
       case ImportExpr(name) =>
-        Await.result(parser.remoteCache.get(name, Position.empty, code => parser.parse(code)), Duration(500, TimeUnit.MILLISECONDS))
-          .right.flatMap(state => {
-          val remotePrinterEnv: EvaluatorEnv = env ++ Renderer.emptyEvaluatorEnv
+        Await.result(
+          parser.remoteCache.get(name, Position.empty, code => parser.parse(code)), Duration(500, TimeUnit.MILLISECONDS)
+        ).right.flatMap(state => {
+          val remotePrinterEnv: EvaluatorEnv = env ++ Evaluator.emptyEnv
           eval(state.expr, remotePrinterEnv, renderer).right.map(t => (t._1 ++ env, t._2, t._3))
         }).left.map(_.toString)
 
@@ -98,7 +98,7 @@ class ModelGenerator(parser: Parser) {
         }
 
       case CallExpr(name, t, params) =>
-        env.get(name, params, t).fold[Value](
+        env.get(name, params, t).fold[Evaluator.Value](
           Left(s"Failed to find a function or object called '$name'. Please ensure it has been declared.")) {
           case objectParams: Seq[String@unchecked] =>
             if (params.size != objectParams.size) {
@@ -216,13 +216,13 @@ class ModelGenerator(parser: Parser) {
         Right((env.add(obj.name, obj.params, obj, paramNames), paramNames, renderer))
 
       case RefExpr(name, t) =>
-        env.get(name, Nil, t).fold[Value](
+        env.get(name, Nil, t).fold[Evaluator.Value](
           Left(s"Failed to find '$name' with type $t in scope. Please check if it has been declared.")
         )(rest => Right((env, rest, renderer)))
 
       case RefFieldExpr(refExpr, field, t) =>
         eval(refExpr, env, renderer) match {
-          case Right((paramEnv, m: Map[String, Any]@unchecked, _)) => m.get(field).fold[Value](
+          case Right((paramEnv, m: Map[String, Any]@unchecked, _)) => m.get(field).fold[Evaluator.Value](
             Left(s"Cannot find field '$field' in expression $refExpr")
           )(value => Right((env, value, renderer)))
           case Right(unexpected) => Left(s"Expected object for reference $refExpr, but received $unexpected")
@@ -233,7 +233,7 @@ class ModelGenerator(parser: Parser) {
         if (seq.expr.isEmpty) {
           Right((env, Unit, renderer))
         } else {
-          def foldRecursive(it: Iterator[Expr], foldEnv: EvaluatorEnv): Value = {
+          def foldRecursive(it: Iterator[Expr], foldEnv: EvaluatorEnv): Evaluator.Value = {
             eval(it.next(), foldEnv, renderer).fold(error => Left(error), t => {
               if (it.hasNext) {
                 foldRecursive(it, t._1)

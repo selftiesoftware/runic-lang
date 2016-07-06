@@ -1,92 +1,106 @@
 package com.repocad.reposcript
 
-import java.io.BufferedReader
-import java.net.URL
-
-import com.repocad.remote._
-import com.repocad.reposcript.lexing.TokenLexer
-import com.repocad.reposcript.parsing.{Expr, Parser, ParserError}
-import sun.net.www.protocol.http.HttpURLConnection
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.io.Source
+import com.repocad.remote.HttpClient
+import com.repocad.reposcript.model.{FontMetrics, ModelGeneratorRenderer, ShapeModel}
+import com.repocad.reposcript.parsing.{Expr, Parser}
 
 /**
-  * Commandline entry-point to Reposcript. See [[Reposcript.main()]] for more information.
+  * Main API entrypoint for Reposcript.
+  *
+  * <p>
+  * This object serves as a helper for the entire Reposcript library, and exposes lexing, parsing, modelling and
+  * evaluating in simple methods with sensible defaults. If you wish to change the defaults, please consult the below
+  * descriptions for each step. Otherwise, the most simple use cases are illustrated here:
+  * </p>
+  * <h2>Simple use cases</h2>
+  * <h4>Evaluating text on a medium</h4>
+  * {{{
+  * val code: String = ???                     // Code to be executed
+  * val httpClient: HttpClient = ???           // Client that can fetch remote scripts from a repository
+  * val fontMetrics: FontMetrics               // The font metrics who knows how to calculate font boundaries
+  * val renderer: Renderer = ???               // A renderer, that can render shapes on a medium
+  * Reposcript.run(code, httpClient, renderer) // : Either[String, Unit]]
+  * }}}
+  * <h4>Producing an abstract syntax tree (AST) from text</h4>
+  * {{{
+  *   val code: String = ???               // Code to be parsed
+  *   val httpClient: HttpClient = ???     // Client that can fetch remote scripts from a repository
+  *   Reposcript.compile(code, httpClient) // : Either[String, Expr]]
+  * }}}
+  * <h4>Producing a [[com.repocad.reposcript.model.ShapeModel]] from an AST</h4>
+  * {{{
+  *   val ast: Expr = ???                // The AST to model
+  *   val httpClient: HttpClient         // A client that can fetch remote scripts from a repository
+  *   val fontMetrics: FontMetrics       // The font metrics who knows how to calculate font boundaries
+  *   Reposcript.model(ast, fontMetrics) // : Either[String, ShapeModel]]
+  * }}}
+  * <h4>Rendering a model</h4>
+  * {{{
+  *   val model: ShapeModel              // The model to render
+  *   val renderer: Renderer             // A renderer, that can render shapes on a medium
+  *   Reposcript.render(model, renderer) // : Unit
+  * }}}
+  * <h2>Reposcript stages</h2>
+  * <p>
+  * If you wish to use Reposcript in a more granular way, you should know what stages Reposcript uses to do the above.
+  * Reposcript first lexes the string into tokens, then parses those tokens into an abstract syntax tree (AST, typed
+  * as the composite type [[Expr]]). These two steps is equivalent to the ``compile`` step. Later, the AST is evaluated
+  * to a [[ShapeModel]] to describe the extend in euclidian space, and finally ``rendered`` with a [[Renderer]] on a
+  * medium. This last phase is dubbed the ``evaluate`` phase.
+  * </p>
   */
 object Reposcript {
 
-  private lazy val nativeHttpClient = new HttpClient {
-    override def apply[T](url: String, method: HttpMethod, headers: Map[String, String], f: Response => T):
-    Future[T] = {
-      Future {
-        method match {
-          case Post(_) => throw new IllegalArgumentException("Post calls not supported")
-          case Get =>
-            val connection = new URL(url).openConnection().asInstanceOf[HttpURLConnection]
-            connection.setRequestMethod(method.method)
-            headers.foreach(header => connection.setRequestProperty(header._1, header._2))
-            val text = Source.fromInputStream(connection.getInputStream).mkString("\n")
-            f(Response(200, 0, text))
-        }
-      }
-    }
-
+  /**
+    * Compiles code into an abstract syntax tree (AST).
+    *
+    * @param code       The code to compile into expression(s).
+    * @param httpClient The client used to fetch remote scripts.
+    * @return Either an error or an AST.
+    */
+  def compile(code: String, httpClient: HttpClient): Either[String, Expr] = {
+    Compiler.parse(code, httpClient).left.map(_.toString)
   }
-
-  def compile(reader: BufferedReader, httpClient: HttpClient): Either[ParserError, Expr] = {
-    val text = Stream.continually(reader.readLine()).takeWhile(_ != null).mkString("\n")
-    Parser.parse(TokenLexer.lex(text), httpClient)
-  }
-
-  //  def evaluate(ast: Expr, httpClient: HttpClient, renderer: Renderer): Unit = {
-  //
-  //  }
 
   /**
-    * Executes Reposcript in either compile (default), evaluate or full-stack mode.
+    * Model an abstract syntax tree (AST) into a spatial representation of [[ShapeModel]].
     *
-    * @param args Arguments for the application.
+    * @param ast         The AST to model.
+    * @param httpClient  A client to fetch remote scripts.
+    * @param fontMetrics The metrics used to calculate font boundaries.
+    * @return Either an error or a [[ShapeModel]].
     */
-  def main(args: Array[String]): Unit = {
-    if (args.isEmpty) {
-      printError("No arguments given")
-    } else {
-      parseFlags(args.toList)
-    }
+  def model(ast: Expr, httpClient: HttpClient, fontMetrics: FontMetrics): Either[String, ShapeModel] = {
+    val parser = new Parser(httpClient)
+    val modelRenderer = new ModelGeneratorRenderer(fontMetrics)
+    Evaluator.model(ast, parser, modelRenderer.toEvaluatorEnv, fontMetrics)
   }
 
-  private def parseFlags(flags: List[String]): Unit = {
-    flags match {
-      case "help" :: tail => printHelp()
-      //      case "evaluate" :: tail =>
-      case "compile" :: "-i" :: file :: Nil =>
-        print(compile(Source.fromFile(file, "UTF8").bufferedReader(), nativeHttpClient).merge.toString)
-      case "compile" :: Nil =>
-        print(compile(Console.in, nativeHttpClient).merge.toString)
-      case e => printError(s"Unknown command '$e'")
-    }
+  /**
+    * Renders a model with the given [[Renderer]].
+    *
+    * @param model    The model to render.
+    * @param renderer The renderer who knows how to render models.
+    */
+  def render(model: ShapeModel, renderer: Renderer): Unit = {
+    Evaluator.render(model, renderer)
   }
 
-  private def printError(error: String): Unit = {
-    println("Error: " + error)
-    printHelp()
-  }
-
-  private def printHelp(): Unit = {
-    println("Usage: Reposcript [compile|help] [-i input file]")
-    println("Reposcript is a library for lexing, parsing and interpreting the Reposcript language.")
-    println("It can be used in two phases: compile and evaluate. By default the input is read from standard input.")
-    println("Compilation: Lexes and parser text into an Abstract Syntax Tree (AST).")
-    println("Evaluation: Evaluates the AST to a euclidean model and renders it on a graphical surface.")
-    println("Options:")
-    println("\tcompile\t\tCompiles an input file by lexing and parsing it. Produces an AST.")
-    println("\t\t\tRequires an input.")
-    println("Flags:")
-    println("\t-i\t\tAn input file to read the input source from.")
-    //    println("\tevaluate\tEvaluates an AST as a graphical model and renders it to a given output.")
-    //    println("\t\t\tRequires an AST and output format.")
+  /**
+    * Runs the given code through the entire Reposcript stack and render the result on the given renderer.
+    *
+    * @param code        The Reposcript code to render.
+    * @param httpClient  A client to pull in remote scripts.
+    * @param fontMetrics Fonts metrics to calculate font boundaries.
+    * @param renderer    A renderer to render the code on.
+    * @return Either an error or nothing (success).
+    */
+  def run(code: String, httpClient: HttpClient, fontMetrics: FontMetrics, renderer: Renderer): Either[String, Unit] = {
+    val parser = new Parser(httpClient)
+    parser.parse(code)
+      .right.flatMap(state => model(state.expr, httpClient, fontMetrics))
+      .right.map(model => render(model, renderer))
+      .left.map(_.toString)
   }
 
 }

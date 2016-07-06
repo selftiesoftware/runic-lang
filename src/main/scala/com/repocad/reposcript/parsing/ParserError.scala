@@ -5,7 +5,9 @@ import com.repocad.reposcript.lexing.Position
 /**
   * A class containing error messages
   */
-case class ParserError(message : String, position : Position)
+case class ParserError(message : String, position : Position) {
+  override def toString: String = s"$message at $position"
+}
 
 object ParserError {
 

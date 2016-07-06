@@ -1,5 +1,6 @@
 package com.repocad.reposcript.evaluating
 
+import com.repocad.reposcript.{Signature, EvaluatorEnv}
 import com.repocad.reposcript.parsing._
 import org.scalatest.{FlatSpec, Matchers}
 

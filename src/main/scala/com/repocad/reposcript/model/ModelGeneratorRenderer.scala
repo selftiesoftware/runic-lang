@@ -1,8 +1,7 @@
-package com.repocad.reposcript.evaluating
+package com.repocad.reposcript.model
 
 import com.repocad.geom.Rectangle2D
 import com.repocad.reposcript.Renderer
-import com.repocad.reposcript.model._
 
 class ModelGeneratorRenderer(fontMetrics: FontMetrics) extends Renderer {
 

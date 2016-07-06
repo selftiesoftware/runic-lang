@@ -10,30 +10,11 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 /**
-  * Companion object to the [[Parser]].
-  */
-object Parser {
-
-  /**
-    * Parses some tokens into an AST of [[Expr]].
-    *
-    * @param tokens     The tokens to parse.
-    * @param httpClient The HttpClient to use when importing modules.
-    * @param defaultEnv The default environment to use when starting the parsing.
-    * @param lexer      The lexer to employ when importing modules.
-    * @return Either an [[ParserError]] or an [[Expr]].
-    */
-  def parse(tokens: LiveStream[Token], httpClient: HttpClient, defaultEnv: ParserEnv = ParserEnv.empty,
-            lexer: Lexer = TokenLexer.lex): Either[ParserError, Expr] = {
-    new Parser(httpClient, defaultEnv, lexer).parse(tokens, spillEnvironment = false).right.map(_.expr)
-  }
-
-}
-
-/**
   * Parses code into drawing expressions (AST). Should not be called directly. Use the companion object
   */
-class Parser(val httpClient: HttpClient, val defaultEnv: ParserEnv, val lexer: Lexer)
+class Parser(val httpClient: HttpClient,
+             val defaultEnv: ParserEnv = com.repocad.reposcript.Compiler.defaultEnv,
+             val lexer: Lexer = TokenLexer.lex)
   extends BlockParser with DefinitionParser with ParserInterface {
   val remoteCache = new RemoteCache(httpClient)
 

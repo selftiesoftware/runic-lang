@@ -1,4 +1,4 @@
-package com.repocad.reposcript.evaluating
+package com.repocad.reposcript
 
 import com.repocad.reposcript.parsing.{AnyType, Expr}
 
