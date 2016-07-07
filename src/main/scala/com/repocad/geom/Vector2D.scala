@@ -121,7 +121,7 @@ object Vector {
       val coordinates =
         try {
           value substring(1, value.size - 1) split "\\," map(
-            coordinate => java.lang.Double parseDouble(coordinate trim)
+            coordinate => java.lang.Double.parseDouble(coordinate.trim)
             )
         } catch {
           case ex : Exception => throw new IllegalArgumentException("Expected a numeric 2D vector, got: " + value, ex)

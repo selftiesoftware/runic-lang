@@ -22,7 +22,7 @@ class RendererTest extends FlatSpec with MockFactory with Matchers {
     (mockPrinter.line _).expects(1.0, 2.0, 3.0, 4.0)
     Evaluator.eval(CallExpr("line", UnitType,
       Seq(NumberExpr(1d), NumberExpr(2), NumberExpr(3d), NumberExpr(4d))), mockParser,
-      mockPrinter.toEvaluatorEnv, mockPrinter, mockFontMetrics)
+      mockPrinter, mockFontMetrics)
   }
   // Test int -> double conversion
 

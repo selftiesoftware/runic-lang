@@ -10,7 +10,7 @@ object Environment {
 
   type EnvMap = Map[String, (Expr, Any)]
 
-  private val primitiveEnv: EnvMap = Map(
+  val primitiveEnv: EnvMap = Map(
     // Calculation primitives
     "+" -> ((FunctionType("+", Seq(RefExpr("first", NumberType), RefExpr("second", NumberType)), NumberType),
       (env: EvaluatorEnv, a: Double, b: Double) => a + b)),
@@ -42,16 +42,5 @@ object Environment {
     "toInt" -> ((FunctionType("toInt", Seq(RefExpr("number", NumberType)), NumberType),
       (_: EvaluatorEnv, double: Double) => double.toInt))
   )
-
-  lazy val evaluatorEnv: EvaluatorEnv = new EvaluatorEnv(
-    primitiveEnv.map(t => {
-      val functionType = t._2._1.asInstanceOf[FunctionType]
-      t._1 -> Map(Signature(functionType.params.map(_.t), functionType.returnType) -> t._2._2)
-    })
-  )
-
-  // String types plus primitive operations plus printer operations
-  lazy val parserEnv: ParserEnv =
-    ParserEnv.ofMap(Compiler.stringTypeMap ++ primitiveEnv.map(t => t._1 -> t._2._1)) ++ Compiler.defaultEnv
 
 }

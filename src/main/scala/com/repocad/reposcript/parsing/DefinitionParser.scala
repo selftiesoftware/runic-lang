@@ -79,7 +79,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
 
       /* Assignments */
       case SymbolToken(name) :~: SymbolToken("as") :~: SymbolToken(typeName) :~: SymbolToken("=") :~: tail =>
-        verifyTypeExists(typeName, startState).right.flatMap(parentType =>
+        verifyTypeExists(typeName, startState).right.flatMap(parentType => {
           parse(startState.copy(env = startState.env.+(name -> parentType), tokens = tail), assignmentState => {
             val assignmentExpr = assignmentState.expr
             parentType.isChild(assignmentExpr.t) match {
@@ -88,7 +88,7 @@ trait DefinitionParser extends TypedParser with ParserInterface with BlockParser
               case false => failure(ParserError.ASSIGNMENT_TYPE_MISMATCH(name, parentType, assignmentExpr)(assignmentState.position))
             }
           }, failure)
-        )
+        }).left.flatMap(failure)
 
       case SymbolToken(name) :~: SymbolToken("=") :~: tail =>
         parse(startState.copy(tokens = tail), assignmentState => {

@@ -73,7 +73,7 @@ object Reposcript {
   def model(ast: Expr, httpClient: HttpClient, fontMetrics: FontMetrics): Either[String, ShapeModel] = {
     val parser = new Parser(httpClient)
     val modelRenderer = new ModelGeneratorRenderer(fontMetrics)
-    Evaluator.model(ast, parser, modelRenderer.toEvaluatorEnv, fontMetrics)
+    Evaluator.model(ast, parser, fontMetrics, Evaluator.defaultEnv)
   }
 
   /**

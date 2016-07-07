@@ -35,7 +35,9 @@ class Parser(val httpClient: HttpClient,
           else {
             Right(state.copy(env = defaultEnv))
           }
-        }, e => Left(e))
+        }, e => {
+          Left(e)
+        })
     } catch {
       case e: InternalError => Left(ParserError("Script too large (sorry - we're working on it!)", Position.empty))
       case e: Exception => Left(ParserError(e.getLocalizedMessage, Position.empty))

@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import com.repocad.reposcript.Evaluator.Error
 import com.repocad.reposcript.lexing.Position
 import com.repocad.reposcript.parsing._
-import com.repocad.reposcript.{Evaluator, EvaluatorEnv}
+import com.repocad.reposcript.{Compiler, Evaluator, EvaluatorEnv}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -15,7 +15,27 @@ import scala.concurrent.duration.Duration
   */
 class ModelGenerator(parser: Parser) {
 
-  def eval(expr: Expr, env: EvaluatorEnv, fontMetrics: FontMetrics): Either[String, ShapeModel] = {
+  private lazy val emptyRendererEnv: EvaluatorEnv =
+    EvaluatorEnv()
+      .add("arc", getNumberTypeReferences("x", "y", "r", "sAngle", "eAngle"), UnitType,
+        (env: EvaluatorEnv, x: Double, y: Double, r: Double, sAngle: Double, eAngle: Double) => Unit)
+      .add("bezier", getNumberTypeReferences("x1", "y2", "x2", "y2", "x3", "y3", "x4", "y4"), UnitType,
+        (env: EvaluatorEnv, x1: Double, y1: Double, x2: Double, y2: Double, x3: Double,
+         y3: Double, x4: Double, y4: Double) => Unit)
+      .add("circle", getNumberTypeReferences("x", "y", "r"), UnitType,
+        (env: EvaluatorEnv, x: Double, y: Double, r: Double) => Unit)
+      .add("line", getNumberTypeReferences("x1", "y1", "x2", "y2"), UnitType,
+        (env: EvaluatorEnv, x1: Double, y1: Double, x2: Double, y2: Double) => Unit)
+      .add("text", getNumberTypeReferences("x", "y", "h") :+ RefExpr("t", AnyType), Compiler.vectorType,
+        (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any) => Unit)
+      .add("text", getNumberTypeReferences("x", "y", "h").:+(RefExpr("t", AnyType)).:+(RefExpr("font", StringType)), Compiler.vectorType,
+        (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any, font: String) => Unit)
+
+  def getNumberTypeReferences(names: String*): Seq[RefExpr] = {
+    for (name <- names) yield RefExpr(name, NumberType)
+  }
+
+  def eval(expr: Expr, fontMetrics: FontMetrics, env: EvaluatorEnv = EvaluatorEnv.empty): Either[String, ShapeModel] = {
     try {
       val renderer = new ModelGeneratorRenderer(fontMetrics)
       eval(expr, env ++ renderer.toEvaluatorEnv, renderer).fold(e => {
@@ -34,7 +54,7 @@ class ModelGenerator(parser: Parser) {
         Await.result(
           parser.remoteCache.get(name, Position.empty, code => parser.parse(code)), Duration(500, TimeUnit.MILLISECONDS)
         ).right.flatMap(state => {
-          val remotePrinterEnv: EvaluatorEnv = env ++ Evaluator.emptyEnv
+          val remotePrinterEnv: EvaluatorEnv = env ++ emptyRendererEnv
           eval(state.expr, remotePrinterEnv, renderer).right.map(t => (t._1 ++ env, t._2, t._3))
         }).left.map(_.toString)
 

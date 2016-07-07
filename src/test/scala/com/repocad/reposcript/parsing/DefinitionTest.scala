@@ -1,6 +1,6 @@
 package com.repocad.reposcript.parsing
 
-import com.repocad.reposcript.Environment
+import com.repocad.reposcript.Compiler
 import com.repocad.reposcript.lexing.Position
 
 class DefinitionTest extends ParsingTest {
@@ -158,7 +158,7 @@ class DefinitionTest extends ParsingTest {
   }
   it should "perform calculations within references" in {
     val obj = ObjectType("f", Seq(RefExpr("x", NumberType)), AnyType)
-    parseStringAll("def a = f(10) f(a.x - 11)", Environment.parserEnv ++ ParserEnv("f" -> obj)).right.get.expr should equal(
+    parseStringAll("def a = f(10) f(a.x - 11)", Compiler.defaultEnv ++ ParserEnv("f" -> obj)).right.get.expr should equal(
       BlockExpr(Seq(DefExpr("a", CallExpr("f", obj, Seq(NumberExpr(10)))),
         CallExpr("f", obj, Seq(CallExpr("-", NumberType, Seq(RefFieldExpr(RefExpr("a", obj), "x", NumberType), NumberExpr(11)))))))
     )

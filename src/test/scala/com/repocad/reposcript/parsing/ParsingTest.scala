@@ -1,7 +1,7 @@
 package com.repocad.reposcript.parsing
 
 import com.repocad.remote.HttpClient
-import com.repocad.reposcript.Environment
+import com.repocad.reposcript.Compiler
 import com.repocad.reposcript.lexing.TokenLexer
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 trait ParsingTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfter {
 
-  val emptyEnv = Environment.parserEnv
+  val emptyEnv = Compiler.defaultEnv
   val mockClient = mock[HttpClient]
   var parser: Parser = null
 

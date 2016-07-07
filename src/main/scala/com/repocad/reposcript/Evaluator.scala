@@ -24,38 +24,26 @@ object Evaluator {
     def TYPE_MISMATCH(expected: String, actual: String) = s"Expected type $expected but found $actual"
   }
 
-  lazy val emptyEnv: EvaluatorEnv =
-    EvaluatorEnv()
-      .add("arc", getNumberTypeReferences("x", "y", "r", "sAngle", "eAngle"), UnitType,
-        (env: EvaluatorEnv, x: Double, y: Double, r: Double, sAngle: Double, eAngle: Double) => Unit)
-      .add("bezier", getNumberTypeReferences("x1", "y2", "x2", "y2", "x3", "y3", "x4", "y4"), UnitType,
-        (env: EvaluatorEnv, x1: Double, y1: Double, x2: Double, y2: Double, x3: Double,
-         y3: Double, x4: Double, y4: Double) => Unit)
-      .add("circle", getNumberTypeReferences("x", "y", "r"), UnitType,
-        (env: EvaluatorEnv, x: Double, y: Double, r: Double) => Unit)
-      .add("line", getNumberTypeReferences("x1", "y1", "x2", "y2"), UnitType,
-        (env: EvaluatorEnv, x1: Double, y1: Double, x2: Double, y2: Double) => Unit)
-      .add("text", getNumberTypeReferences("x", "y", "h") :+ RefExpr("t", AnyType), Compiler.vectorType,
-        (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any) => Unit)
-      .add("text", getNumberTypeReferences("x", "y", "h").:+(RefExpr("t", AnyType)).:+(RefExpr("font", StringType)), Compiler.vectorType,
-        (env: EvaluatorEnv, x: Double, y: Double, h: Double, t: Any, font: String) => Unit)
-
-  def getNumberTypeReferences(names: String*): Seq[RefExpr] = {
-    for (name <- names) yield RefExpr(name, NumberType)
-  }
+  lazy val defaultEnv: EvaluatorEnv = new EvaluatorEnv(
+    Environment.primitiveEnv.map(t => {
+      val functionType = t._2._1.asInstanceOf[FunctionType]
+      t._1 -> Map(Signature(functionType.params.map(_.t), functionType.returnType) -> t._2._2)
+    })
+  )
 
   /**
     * Evaluates the given expression by generating a model and evaluating it on the given renderer.
     *
     * @param expr        The AST to evaluate.
     * @param parser      The parser to use when evaluating import statements.
-    * @param environment The environment to use when evaluating the AST.
     * @param renderer    The renderer to render the output.
     * @param fontMetrics Metrics for fonts.
+    * @param environment The environment to use when evaluating the AST.
     * @return Either an error or nothing.
     */
-  def eval(expr: Expr, parser: Parser, environment: EvaluatorEnv, renderer: Renderer, fontMetrics: FontMetrics): Either[String, Unit] = {
-    model(expr, parser, environment, fontMetrics).right.map(model => render(model, renderer))
+  def eval(expr: Expr, parser: Parser, renderer: Renderer, fontMetrics: FontMetrics,
+           environment: EvaluatorEnv = defaultEnv): Either[String, Unit] = {
+    model(expr, parser, fontMetrics, environment).right.map(model => render(model, renderer))
   }
 
   /**
@@ -63,12 +51,13 @@ object Evaluator {
     *
     * @param expr        The expression to model.
     * @param parser      The parser to use when evaluating import statements.
-    * @param environment The environtment to use when evaluating the AST.
     * @param fontMetrics The metrics to help calculate font boundaries.
+    * @param environment The environtment to use when evaluating the AST.
     * @return Either an error or a [[ShapeModel]].
     */
-  def model(expr: Expr, parser: Parser, environment: EvaluatorEnv, fontMetrics: FontMetrics): Either[String, ShapeModel] = {
-    new ModelGenerator(parser).eval(expr, environment, fontMetrics)
+  def model(expr: Expr, parser: Parser, fontMetrics: FontMetrics,
+            environment: EvaluatorEnv = defaultEnv): Either[String, ShapeModel] = {
+    new ModelGenerator(parser).eval(expr, fontMetrics, environment)
   }
 
   /**
