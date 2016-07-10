@@ -1,14 +1,11 @@
 package com.repocad.reposcript.model
 
-import java.util.concurrent.TimeUnit
-
 import com.repocad.reposcript.Evaluator.Error
 import com.repocad.reposcript.lexing.Position
 import com.repocad.reposcript.parsing._
 import com.repocad.reposcript.{Compiler, Evaluator, EvaluatorEnv}
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.util.{Failure, Success}
 
 /**
   * Generates a [[com.repocad.reposcript.model.ShapeModel]] from an AST.
@@ -51,12 +48,13 @@ class ModelGenerator(parser: Parser) {
     expr match {
 
       case ImportExpr(name) =>
-        Await.result(
-          parser.remoteCache.get(name, Position.empty, code => parser.parse(code)), Duration(500, TimeUnit.MILLISECONDS)
-        ).right.flatMap(state => {
-          val remotePrinterEnv: EvaluatorEnv = env ++ emptyRendererEnv
-          eval(state.expr, remotePrinterEnv, renderer).right.map(t => (t._1 ++ env, t._2, t._3))
-        }).left.map(_.toString)
+        parser.remoteCache.get(name, Position.empty, code => parser.parse(code)).result match {
+          case Success(Right(state)) =>
+            val remotePrinterEnv: EvaluatorEnv = env ++ emptyRendererEnv
+            eval(state.expr, remotePrinterEnv, renderer).right.map(t => (t._1 ++ env, t._2, t._3))
+          case Success(Left(error)) => Left(error.toString)
+          case Failure(error) => Left(error.toString)
+        }
 
       case v: ValueExpr[_] => Right((env, v.value, renderer))
 

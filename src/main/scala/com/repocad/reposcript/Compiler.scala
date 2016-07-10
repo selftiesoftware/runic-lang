@@ -6,7 +6,7 @@ import com.repocad.reposcript.parsing._
 
 object Compiler {
 
-  lazy val stringTypeMap: Map[String, AnyType] = Map(
+  val stringTypeMap: Map[String, AnyType] = Map(
     "any" -> AnyType,
     "boolean" -> BooleanType,
     "number" -> NumberType,
@@ -14,7 +14,7 @@ object Compiler {
     "unit" -> UnitType
   )
 
-  lazy val defaultEnv: ParserEnv = ParserEnv(
+  val defaultEnv: ParserEnv = ParserEnv(
     "vector" -> vectorType,
     "arc" -> FunctionType("arc", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("r", NumberType), RefExpr("sAngle", NumberType), RefExpr("eAngle", NumberType)), UnitExpr),
     "bezier" -> FunctionType("bezier", Seq(RefExpr("x1", NumberType), RefExpr("y1", NumberType), RefExpr("x2", NumberType), RefExpr("y2", NumberType), RefExpr("x3", NumberType), RefExpr("y3", NumberType), RefExpr("x4", NumberType), RefExpr("y4", NumberType)), UnitExpr),

@@ -2,7 +2,7 @@
 name := "reposcript"
 version := "0.1-SNAPSHOT"
 organization := "com.repocad"
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
 homepage := Some(url("http://repocad.com"))
 
 scalacOptions in Compile ++= Seq(

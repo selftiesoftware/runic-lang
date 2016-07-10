@@ -8,6 +8,7 @@ import com.repocad.reposcript.lexing._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.util.{Failure, Success}
 
 /**
   * Parses code into drawing expressions (AST). Should not be called directly. Use the companion object
@@ -51,10 +52,10 @@ class Parser(val httpClient: HttpClient,
 
       // Import
       case SymbolToken("import") :~: SymbolToken(script) :~: tail =>
-        Await.result(remoteCache.get(script, state.position, code => parse(lexer(code), spillEnvironment = true)),
-          Duration(500, TimeUnit.MILLISECONDS)) match {
-          case Left(error) => failure(error)
-          case Right(importState) =>
+        remoteCache.get(script, state.position, code => parse(lexer(code), spillEnvironment = true)).result match {
+          case Failure(error) => failure(ParserError.apply(failure.toString(), state.position))
+          case Success(Left(error)) => failure(error)
+          case Success(Right(importState)) =>
             success(ExprState(ImportExpr(script), state.env.++(importState.env), tail))
         }
 
