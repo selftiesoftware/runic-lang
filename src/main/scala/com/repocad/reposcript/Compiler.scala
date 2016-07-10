@@ -6,6 +6,8 @@ import com.repocad.reposcript.parsing._
 
 object Compiler {
 
+  val vectorType = ObjectType("vector", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), AnyType)
+
   val stringTypeMap: Map[String, AnyType] = Map(
     "any" -> AnyType,
     "boolean" -> BooleanType,
@@ -23,8 +25,6 @@ object Compiler {
     "text" -> FunctionType("text", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("h", NumberType), RefExpr("t", AnyType)), vectorType),
     "text" -> FunctionType("text", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType), RefExpr("h", NumberType), RefExpr("t", AnyType), RefExpr("font", StringType)), vectorType)
   ) ++ stringTypeMap ++ Environment.primitiveEnv.map(t => t._1 -> t._2._1)
-
-  val vectorType = ObjectType("vector", Seq(RefExpr("x", NumberType), RefExpr("y", NumberType)), AnyType)
 
   /**
     * Parses some tokens into an AST of [[Expr]].

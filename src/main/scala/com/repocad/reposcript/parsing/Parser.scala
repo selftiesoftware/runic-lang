@@ -17,6 +17,7 @@ class Parser(val httpClient: HttpClient,
              val defaultEnv: ParserEnv = com.repocad.reposcript.Compiler.defaultEnv,
              val lexer: Lexer = TokenLexer.lex)
   extends BlockParser with DefinitionParser with ParserInterface {
+
   val remoteCache = new RemoteCache(httpClient)
 
   private val DEFAULT_LOOP_COUNTER = "counter"
