@@ -574,5 +574,5 @@ case class TransformationMatrix(a : Double,b : Double,c : Double,d : Double,e : 
 }
 
 object TransformationMatrix {
-  def apply() = new TransformationMatrix(1, 0, 0, 1, 0, 10)
+  def apply() = new TransformationMatrix(1, 0, 0, 1, 0, 0)
 }
