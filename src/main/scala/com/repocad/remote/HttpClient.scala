@@ -112,6 +112,6 @@ sealed class HttpResponse[T](httpClient: HttpClient, val future: Future[T]) {
     * @tparam R The type of element to map to.
     * @return An object of type R.
     */
-  def map[R](f: T => R): HttpResponse[R] = new HttpResponse[R](httpClient, future.map(f))
+  def map[R](f: T => R): HttpResponse[R] = new HttpResponse[R](httpClient, future.map(f)(httpClient.executionContext))
 
 }
