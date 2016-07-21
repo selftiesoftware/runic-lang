@@ -96,7 +96,7 @@ abstract class HttpClient(implicit val executionContext: ExecutionContext) {
   * @param future     The future of the response.
   * @tparam T The type of the element in the response.
   */
-sealed class HttpResponse[T](httpClient: HttpClient, future: Future[T]) {
+sealed class HttpResponse[T](httpClient: HttpClient, val future: Future[T]) {
 
   /**
     * Gets the result of the response.
@@ -105,5 +105,13 @@ sealed class HttpResponse[T](httpClient: HttpClient, future: Future[T]) {
     */
   def result: Try[T] = httpClient.result(future)
 
-}
+  /**
+    * Maps the response to another value.
+    *
+    * @param f The function mapping the type T to R.
+    * @tparam R The type of element to map to.
+    * @return An object of type R.
+    */
+  def map[R](f: T => R): HttpResponse[R] = new HttpResponse[R](httpClient, future.map(f))
 
+}
