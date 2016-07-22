@@ -52,3 +52,5 @@ pomExtra := (
         <url>http://github.com/Jegp</url>
       </developer>
     </developers>)
+
+enablePlugins(ScalaJSPlugin)
