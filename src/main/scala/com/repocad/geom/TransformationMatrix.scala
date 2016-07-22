@@ -577,4 +577,5 @@ object TransformationMatrix {
   def apply() = new TransformationMatrix(1, 0, 0, 1, 0, 0)
   def id = TransformationMatrix()
   def mirror = new TransformationMatrix(-1, 0, 0, -1, 0, 0)
+  def mirror_y = new TransformationMatrix(1, 0, 0, -1, 0, 0)
 }
