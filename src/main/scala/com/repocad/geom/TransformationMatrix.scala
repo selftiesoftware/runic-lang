@@ -461,6 +461,10 @@ case class TransformationMatrix(a : Double,b : Double,c : Double,d : Double,e : 
     Vector2D(x * a + y * c + e, x * b + y * d + f)
   }
 
+  def applyToPoint(v : Vector2D) : Vector2D = {
+    applyToPoint(v.x, v.y)
+  }
+
   /*
 
   /**
