@@ -18,6 +18,7 @@
  */
 
 package com.repocad.geom
+import scala.language.implicitConversions
 
 /**
  * A vector class utility.
@@ -243,6 +244,13 @@ case class Vector2D(x : Double, y : Double) extends Vector {
  */
 object Vector2D {
 
+  object Implicits {
+    object TupleConversions {
+      implicit def pairToVector2D(p: (Double,Double)) = Vector2D(p._1,p._2)
+      implicit def vector2DToPair(v: Vector2D) = (v.x,v.y)
+    }
+  }
+
   /**
    * Calculates the determinant of the 2x2 matrix described by two vectors.
    *
@@ -274,5 +282,4 @@ object Vector2D {
       scala.math.acos(inner) * 180 / scala.math.Pi
     } else 0.0
   }
-
 }
