@@ -15,7 +15,7 @@ object SvgExporter extends Exporter[String] {
     *
     * A model like {{{ LineModel(0, 0, 10, 5) }}} will result in the following SVG string:
     * {{{
-    *   <svg width="10mm" height="5mm" viewBox="0 0 10 5">M0 0 L10 5 Z</svg>
+    *   <svg width="10mm" height="5mm" viewBox="0 0 10 5" fill="none">M0 0 L10 5 Z</svg>
     * }}}
     *
     * @param model The model to export.
