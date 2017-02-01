@@ -1,9 +1,8 @@
 package com.repocad.reposcript.export
 
-import java.security.KeyStore.Entry.Attribute
-
 import com.repocad.geom.Vector2D
 import com.repocad.reposcript.model._
+import com.repocad.util.{Attribute, Attributes}
 
 /**
   * Exports a [[ShapeModel]] to an SVG string.
@@ -35,10 +34,10 @@ object SvgExporter extends Exporter[String] {
 
   private def evaluate(model: ShapeModel): Seq[String] = {
     model match {
-      case SeqModel(models) => models.flatMap(evaluate)
+      case SeqModel(models, attributes) => models.flatMap(shape => evaluate(shape))
 
-      case a: ArcModel => Seq(toPath(arcToSvg(a)))
-      case LineModel(x1, y1, x2, y2) => Seq(toPath(s"M$x1 $y1 L$x2 $y2 Z"))
+      case a: ArcModel => Seq(toPath(arcToSvg(a), a.attributes))
+      case LineModel(x1, y1, x2, y2, attributes) => Seq(toPath(s"M$x1 $y1 L$x2 $y2 Z", attributes))
     }
   }
 
@@ -60,8 +59,8 @@ object SvgExporter extends Exporter[String] {
     )
   }
 
-  private def toPath(d: String): String = {
-    s"""<path d="$d" stroke="black" stroke-width="1" fill="none"/>"""
+  private def toPath(d: String, attributes: Attributes): String = {
+    s"""<path d="$d" stroke="${attributes.collectFirst{ case Attribute.Colour(colour) => colour }.getOrElse("black")}" stroke-width="1" fill="none"/>"""
   }
 
 }

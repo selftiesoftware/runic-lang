@@ -1,11 +1,14 @@
 package com.repocad.reposcript.model
 
 import com.repocad.geom.Rectangle2D
+import com.repocad.util.{Attribute, Attributes}
 
 /**
   * A model is a geometrical representation of things that can be drawn and that have an extend in space.
   */
-trait ShapeModel {
+abstract class ShapeModel {
+
+  def attributes: Attributes
 
   /**
     * The boundary of the shape in the coordinates of the global view.
@@ -18,11 +21,14 @@ trait ShapeModel {
 
 object ShapeModel {
   val empty = new ShapeModel {
+    val attributes: Attributes = Set()
+
     override def boundary: Rectangle2D = Rectangle2D(0, 0, 0, 0)
   }
 }
 
-case class ArcModel(x: Double, y: Double, radius: Double, startAngle: Double, endAngle: Double) extends ShapeModel {
+case class ArcModel(x: Double, y: Double, radius: Double, startAngle: Double, endAngle: Double,
+                    attributes: Attributes = Set()) extends ShapeModel {
   // TODO: Not correct
   val boundary = Rectangle2D(x - radius, y - radius, x + radius, y + radius)
 }
@@ -30,7 +36,8 @@ case class ArcModel(x: Double, y: Double, radius: Double, startAngle: Double, en
 case class BezierCurveModel(x1: Double, y1: Double,
                             x2: Double, y2: Double,
                             x3: Double, y3: Double,
-                            x4: Double, y4: Double) extends ShapeModel {
+                            x4: Double, y4: Double,
+                            attributes: Attributes = Set()) extends ShapeModel {
   val boundary = Rectangle2D(
     math.min(x1, math.min(x2, math.min(x3, x4))),
     math.min(y1, math.min(y2, math.min(y3, y4))),
@@ -39,7 +46,7 @@ case class BezierCurveModel(x1: Double, y1: Double,
   )
 }
 
-case class CircleModel(x: Double, y: Double, radius: Double) extends ShapeModel {
+case class CircleModel(x: Double, y: Double, radius: Double, attributes: Attributes = Set()) extends ShapeModel {
   val boundary = Rectangle2D(x - radius, y - radius, x + radius, y + radius)
 }
 
@@ -51,16 +58,18 @@ case class CircleModel(x: Double, y: Double, radius: Double) extends ShapeModel 
   * @param x2 The second x coordinate of the line.
   * @param y2 The second y coordinate of the line.
   */
-case class LineModel(x1: Double, y1: Double, x2: Double, y2: Double) extends ShapeModel {
+case class LineModel(x1: Double, y1: Double, x2: Double, y2: Double, attributes: Attributes = Set())
+  extends ShapeModel {
   val boundary = Rectangle2D(x1, y1, x2, y2)
 }
 
 /**
   * A sequence of [[ShapeModel]]s.
   */
-case class SeqModel(models: Seq[ShapeModel]) extends ShapeModel {
+case class SeqModel(models: Seq[ShapeModel], attributes: Attributes = Set())
+  extends ShapeModel {
 
-  lazy val boundary = if (models.isEmpty) {
+  lazy val boundary: Rectangle2D = if (models.isEmpty) {
     Rectangle2D(0, 0, 0, 0)
   } else {
     models.tail.map(_.boundary).foldLeft(models.head.boundary)(_ expand _)
@@ -68,6 +77,7 @@ case class SeqModel(models: Seq[ShapeModel]) extends ShapeModel {
 
 }
 
-case class TextModel(x: Double, y: Double, size: Double, text: String, font: String, fontMetrics: FontMetrics) extends ShapeModel {
-  lazy val boundary = fontMetrics.calculateBoundary(this)
+case class TextModel(x: Double, y: Double, size: Double, text: String, font: String, fontMetrics: FontMetrics,
+                     attributes: Attributes = Set()) extends ShapeModel {
+  lazy val boundary: Rectangle2D = fontMetrics.calculateBoundary(this)
 }
