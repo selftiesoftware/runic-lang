@@ -19,7 +19,7 @@ import scala.util.{Failure, Success, Try}
   */
 object Main {
 
-  private lazy val nativeHttpClient = new HttpClient {
+  private lazy val nativeHttpClient = new HttpClient(scala.concurrent.ExecutionContext.Implicits.global) {
     override def httpCall[T](url: String, method: HttpMethod, headers: Map[String, String], f: Response => T):
     Future[T] = {
       Future {

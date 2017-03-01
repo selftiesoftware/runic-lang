@@ -6,7 +6,7 @@ import scala.util.Try
 /**
   * An interface that can execute a request to a remote web service.
   */
-abstract class HttpClient(implicit val executionContext: ExecutionContext) {
+abstract class HttpClient(protected[remote] val executionContext: ExecutionContext) {
 
   /**
     * Sends a HTTP request asynchronously to a given URL.

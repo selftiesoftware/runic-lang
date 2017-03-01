@@ -1,8 +1,8 @@
 
-name := "reposcript"
-version := "0.1-SNAPSHOT"
+name := "runic"
+version := "0.2"
 organization := "com.repocad"
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.1"
 homepage := Some(url("http://repocad.com"))
 
 scalacOptions in Compile ++= Seq(
@@ -12,10 +12,10 @@ scalacOptions in Compile ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "3.0.0-M15" % Test,
-  "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % Test,
-  "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
-  "org.scala-js" %% "scalajs-stubs" % "0.6.10" % "provided"
+  "org.scalatest" %% "scalatest" % "3.0.1" % Test,
+  "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % Test,
+  "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
+  "org.scala-js" %% "scalajs-stubs" % "0.6.14" % "provided"
 )
 
 publishMavenStyle := true
@@ -42,8 +42,8 @@ pomExtra := (
       </license>
     </licenses>
     <scm>
-      <url>git@github.com:repocad/reposcript.git</url>
-      <connection>scm:git:git@github.com:repocad/reposcript.git</connection>
+      <url>git@github.com:selftiesoftware/runic-lang</url>
+      <connection>scm:git:git@github.com:selftiesoftware/runic-lang.git</connection>
     </scm>
     <developers>
       <developer>
